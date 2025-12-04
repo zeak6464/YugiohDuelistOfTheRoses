@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duelist of the Roses - Deck Editor</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    #editor {
+      display: none;
+      height: 100vh;
+      padding: 16px;
+      gap: 16px;
+      background: 
+        radial-gradient(ellipse at 30% 20%, rgba(139,26,26,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(26,58,107,0.15) 0%, transparent 50%),
+        var(--bg-dark);
+    }
+
+    #editor.loaded { display: flex; }
+
+    .editor-left {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .editor-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .editor-right {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Search & Filters */
+    .search-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    .search-box input, .deck-name-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(201,162,39,0.3);
+      background: var(--bg-card);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    .search-box input:focus, .deck-name-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-btn {
+      padding: 6px 12px;
+      font-size: 10px;
+      background: var(--bg-card);
+      border: 1px solid rgba(201,162,39,0.2);
+    }
+
+    .filter-btn.active {
+      background: var(--gold);
+      color: var(--bg-dark);
+      border-color: var(--gold);
+    }
+
+    /* Card Grid */
+    .card-grid {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 10px;
+      padding: 10px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+
+    .card-grid .card-ui {
+      max-width: none;
+      min-width: auto;
+    }
+
+    /* Deck Panel */
+    .deck-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .deck-count {
+      font-size: 14px;
+      color: var(--gold);
+    }
+
+    .deck-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+    }
+
+    .deck-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-card);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 11px;
+    }
+
+    .deck-card:hover {
+      background: rgba(201,162,39,0.2);
+    }
+
+    .deck-card img {
+      width: 30px;
+      height: 40px;
+      object-fit: cover;
+      object-position: top;
+      border-radius: 2px;
+    }
+
+    .deck-card .info {
+      flex: 1;
+    }
+
+    .deck-card .name {
+      color: var(--gold-light);
+      font-weight: 600;
+    }
+
+    .deck-card .stats {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .deck-card .remove {
+      color: var(--crimson);
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .deck-card:hover .remove {
+      opacity: 1;
+    }
+
+    /* Preview Panel */
+    .preview-panel {
+      flex: 1;
+    }
+
+    .preview-image {
+      width: 100%;
+      max-width: 180px;
+      border-radius: 6px;
+      border: 2px solid var(--gold);
+      margin-bottom: 12px;
+    }
+
+    .preview-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gold-light);
+      margin-bottom: 8px;
+    }
+
+    .preview-type {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .preview-attr {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-bottom: 12px;
+    }
+
+    .preview-stats {
+      font-family: 'MedievalSharp', cursive;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .preview-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .deck-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .deck-actions button {
+      flex: 1;
+      min-width: 80px;
+      font-size: 10px;
+      padding: 8px 10px;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      font-size: 11px;
+      padding: 8px 12px;
+    }
+
+    .status-bar {
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .status-bar.valid { color: #4ac77a; }
+    .status-bar.invalid { color: var(--crimson); }
+
+    /* Saved Decks List */
+    .saved-decks-list {
+      max-height: 150px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .saved-deck-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 12px;
+    }
+
+    .saved-deck-item:hover {
+      background: rgba(201,162,39,0.2);
+    }
+
+    .saved-deck-item .deck-info {
+      flex: 1;
+    }
+
+    .saved-deck-item .deck-title {
+      color: var(--gold-light);
+      font-weight: 600;
+    }
+
+    .saved-deck-item .deck-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .saved-deck-item .deck-delete {
+      color: var(--crimson);
+      cursor: pointer;
+      padding: 4px 8px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .saved-deck-item:hover .deck-delete {
+      opacity: 1;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-panel);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid var(--gold);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .modal h3 {
+      color: var(--gold);
+      margin: 0 0 16px 0;
+      font-size: 18px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+    }
+
+    /* Hidden file input */
+    #importInput {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<a href="index.html" class="btn btn-secondary back-link">← Menu</a>
+
+<div id="loading">
+  <h1>Deck Editor</h1>
+  <div class="spinner"></div>
+  <div class="status" id="loadStatus">Loading card database...</div>
+</div>
+
+<div id="editor">
+  <!-- Left: Preview & Deck Actions -->
+  <div class="editor-left">
+    <div class="panel preview-panel">
+      <div class="panel-title">Card Preview</div>
+      <div id="preview">
+        <p class="muted" style="text-align:center;margin-top:40px;">Select a card to preview</p>
+      </div>
+    </div>
+    
+    <div class="panel">
+      <div class="panel-title">Deck Actions</div>
+      <div style="margin-bottom:12px;">
+        <input type="text" id="deckNameInput" class="deck-name-input" placeholder="Deck Name" style="width:100%;">
+      </div>
+      <div class="deck-actions">
+        <button onclick="saveDeckAs()">💾 Save</button>
+        <button onclick="showLoadModal()" class="btn-secondary">📂 Load</button>
+      </div>
+      <div class="deck-actions" style="margin-top:8px;">
+        <button onclick="exportDeck()" class="btn-secondary">📤 Export</button>
+        <button onclick="document.getElementById('importInput').click()" class="btn-secondary">📥 Import</button>
+      </div>
+      <div class="deck-actions" style="margin-top:8px;">
+        <button onclick="randomDeck()">🎲 Random</button>
+        <button onclick="clearDeck()" class="btn-secondary">🗑️ Clear</button>
+      </div>
+      <input type="file" id="importInput" accept=".json" onchange="importDeck(event)">
+      <div id="statusBar" class="status-bar" style="margin-top:12px;">
+        Deck: 0/40 cards (need 30+ to play)
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(201,162,39,0.2);">
+        <div style="font-size:11px;color:var(--gold);margin-bottom:8px;font-weight:600;">Deck Master</div>
+        <div id="deckMasterDisplay" style="min-height:60px;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;border:1px solid rgba(201,162,39,0.3);">
+          <p class="muted" style="text-align:center;font-size:10px;margin:10px 0;">No Deck Master set</p>
+          <p class="muted" style="text-align:center;font-size:9px;margin:0;">(Auto-selected: Highest Level/ATK)</p>
+        </div>
+        <button onclick="clearDeckMaster()" class="btn-secondary" style="width:100%;margin-top:8px;font-size:10px;padding:6px;" disabled id="clearMasterBtn">Clear Master</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Card Collection -->
+  <div class="editor-center">
+    <div class="panel" style="flex-shrink:0;">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search cards..." oninput="filterCards()">
+        <button onclick="filterCards()">Search</button>
+      </div>
+      <div class="filters" style="margin-top:10px;">
+        <div style="margin-bottom:8px;">
+          <span style="color:var(--text-muted);font-size:11px;margin-right:8px;">Attribute:</span>
+          <button class="filter-btn active" data-attr="" onclick="setAttrFilter(this, '')">All</button>
+          <button class="filter-btn attr-LIGHT" data-attr="LIGHT" onclick="setAttrFilter(this, 'LIGHT')">LIGHT</button>
+          <button class="filter-btn attr-DARK" data-attr="DARK" onclick="setAttrFilter(this, 'DARK')">DARK</button>
+          <button class="filter-btn attr-FIRE" data-attr="FIRE" onclick="setAttrFilter(this, 'FIRE')">FIRE</button>
+          <button class="filter-btn attr-WATER" data-attr="WATER" onclick="setAttrFilter(this, 'WATER')">WATER</button>
+          <button class="filter-btn attr-EARTH" data-attr="EARTH" onclick="setAttrFilter(this, 'EARTH')">EARTH</button>
+          <button class="filter-btn attr-WIND" data-attr="WIND" onclick="setAttrFilter(this, 'WIND')">WIND</button>
+        </div>
+        <div>
+          <span style="color:var(--text-muted);font-size:11px;margin-right:8px;">Type:</span>
+          <button class="filter-btn active" data-type="" onclick="setTypeFilter(this, '')">All</button>
+          <button class="filter-btn" data-type="Normal" onclick="setTypeFilter(this, 'Normal')">Normal</button>
+          <button class="filter-btn" data-type="Effect" onclick="setTypeFilter(this, 'Effect')">Effect</button>
+          <button class="filter-btn" data-type="Fusion" onclick="setTypeFilter(this, 'Fusion')">Fusion</button>
+          <button class="filter-btn" data-type="Synchro" onclick="setTypeFilter(this, 'Synchro')">Synchro</button>
+          <button class="filter-btn" data-type="XYZ" onclick="setTypeFilter(this, 'XYZ')">XYZ</button>
+          <button class="filter-btn" data-type="Link" onclick="setTypeFilter(this, 'Link')">Link</button>
+          <button class="filter-btn" data-type="Ritual" onclick="setTypeFilter(this, 'Ritual')">Ritual</button>
+          <button class="filter-btn" data-type="Pendulum" onclick="setTypeFilter(this, 'Pendulum')">Pendulum</button>
+          <button class="filter-btn" data-type="Tuner" onclick="setTypeFilter(this, 'Tuner')">Tuner</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div class="panel-title">
+        <span>Card Collection</span>
+        <span id="cardCount" class="muted">0 cards</span>
+      </div>
+      <div class="card-grid" id="cardGrid"></div>
+    </div>
+  </div>
+
+  <!-- Right: Current Deck -->
+  <div class="editor-right">
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <!-- Deck Tabs -->
+      <div style="display:flex; gap:4px; margin-bottom:10px; border-bottom:1px solid rgba(201,162,39,0.2);">
+        <button id="mainDeckTab" class="filter-btn active" onclick="switchDeckTab('main')" style="flex:1; border-radius:4px 4px 0 0; border-bottom:none;">Main Deck</button>
+        <button id="extraDeckTab" class="filter-btn" onclick="switchDeckTab('extra')" style="flex:1; border-radius:4px 4px 0 0; border-bottom:none;">Extra Deck</button>
+      </div>
+      
+      <!-- Main Deck -->
+      <div id="mainDeckPanel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div class="deck-header">
+          <div class="panel-title" style="margin-bottom:0;">Main Deck</div>
+          <span id="deckCount" class="deck-count">0/40</span>
+        </div>
+        <div class="deck-list" id="deckList">
+          <p class="muted" style="text-align:center;margin-top:20px;">Click cards to add them</p>
+        </div>
+      </div>
+      
+      <!-- Extra Deck -->
+      <div id="extraDeckPanel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;display:none;">
+        <div class="deck-header">
+          <div class="panel-title" style="margin-bottom:0;">Extra Deck</div>
+          <span id="extraDeckCount" class="deck-count">0/15</span>
+        </div>
+        <div class="deck-list" id="extraDeckList">
+          <p class="muted" style="text-align:center;margin-top:20px;">Click Extra Deck cards to add them</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load Deck Modal -->
+<div class="modal-overlay" id="loadModal">
+  <div class="modal">
+    <h3>📂 Load Saved Deck</h3>
+    <div class="saved-decks-list" id="savedDecksList">
+      <p class="muted">No saved decks yet</p>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeLoadModal()" class="btn-secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/cards.js"></script>
+<script>
+let cardDb, deckManager;
+let currentFilter = { query: '', attr: '', type: '' };
+let selectedCard = null;
+
+let currentDeckTab = 'main'; // 'main' or 'extra'
+
+async function init() {
+  cardDb = new CardDatabase();
+  await cardDb.load(msg => document.getElementById('loadStatus').textContent = msg);
+  
+  deckManager = new DeckManager(cardDb);
+  deckManager.load();
+  
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('editor').classList.add('loaded');
+  
+  document.getElementById('deckNameInput').value = deckManager.deckName;
+  
+  renderCardGrid();
+  renderDeck();
+  renderExtraDeck();
+  renderDeckMaster();
+}
+
+function switchDeckTab(tab) {
+  currentDeckTab = tab;
+  const mainTab = document.getElementById('mainDeckTab');
+  const extraTab = document.getElementById('extraDeckTab');
+  const mainPanel = document.getElementById('mainDeckPanel');
+  const extraPanel = document.getElementById('extraDeckPanel');
+  
+  if (tab === 'main') {
+    mainTab.classList.add('active');
+    extraTab.classList.remove('active');
+    mainPanel.style.display = 'flex';
+    extraPanel.style.display = 'none';
+  } else {
+    mainTab.classList.remove('active');
+    extraTab.classList.add('active');
+    mainPanel.style.display = 'none';
+    extraPanel.style.display = 'flex';
+  }
+}
+
+function renderCardGrid() {
+  const grid = document.getElementById('cardGrid');
+  const cards = cardDb.search(currentFilter.query, { 
+    attr: currentFilter.attr || undefined,
+    type: currentFilter.type || undefined
+  });
+  
+  document.getElementById('cardCount').textContent = cards.length + ' cards';
+  
+  grid.innerHTML = '';
+  cards.forEach(card => {
+    const div = document.createElement('div');
+    div.className = 'card-ui';
+    const isExtraDeck = deckManager.isExtraDeckMonster(card);
+    const summonType = isExtraDeck ? getSummonType(card) : null;
+    div.innerHTML = `
+      <div style="position:relative;">
+        <img src="${card.getImgPath()}" onerror="this.src='${card.getApiImgPath()}'">
+        ${isExtraDeck ? `<div style="position:absolute;top:2px;right:2px;background:rgba(201,162,39,0.9);color:var(--bg-dark);padding:1px 4px;border-radius:3px;font-size:8px;font-weight:bold;">${summonType || 'EXTRA'}</div>` : ''}
+      </div>
+      <div class="name">${card.name}</div>
+      <div class="stats">${card.atk}/${card.def}${isExtraDeck ? ' • Extra' : ''}</div>
+    `;
+    div.onclick = () => addToDeck(card);
+    div.onmouseenter = () => showPreview(card);
+    if (isExtraDeck) {
+      div.style.border = '1px solid rgba(201,162,39,0.5)';
+    }
+    grid.appendChild(div);
+  });
+}
+
+function renderDeckMaster() {
+  const display = document.getElementById('deckMasterDisplay');
+  const clearBtn = document.getElementById('clearMasterBtn');
+  
+  if (deckManager.deckLeader) {
+    const card = deckManager.deckLeader;
+    display.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <img src="${card.getImgPath()}" onerror="this.src='${card.getApiImgPath()}'" style="width:40px;height:55px;object-fit:cover;border-radius:3px;border:2px solid var(--gold);">
+        <div style="flex:1;">
+          <div style="color:var(--gold-light);font-weight:600;font-size:11px;">👑 ${card.name}</div>
+          <div style="color:var(--text-muted);font-size:9px;">ATK ${card.atk} / DEF ${card.def} / ★${card.level}</div>
+        </div>
+      </div>
+    `;
+    clearBtn.disabled = false;
+  } else {
+    display.innerHTML = `
+      <p class="muted" style="text-align:center;font-size:10px;margin:10px 0;">No Deck Master set</p>
+      <p class="muted" style="text-align:center;font-size:9px;margin:0;">(Auto-selected: Highest Level/ATK)</p>
+      <p class="muted" style="text-align:center;font-size:8px;margin-top:4px;">Right-click a card to set as Master</p>
+    `;
+    clearBtn.disabled = true;
+  }
+}
+
+function setDeckMaster(card) {
+  // Check if card is in deck
+  if (!deckManager.deck.some(c => c.id === card.id)) {
+    alert('Card must be in your deck to be set as Deck Master!');
+    return;
+  }
+  
+  deckManager.deckLeader = card;
+  deckManager.save();
+  renderDeck();
+  renderDeckMaster();
+}
+
+function clearDeckMaster() {
+  if (deckManager.deckLeader) {
+    deckManager.deckLeader = null;
+    deckManager.save();
+    renderDeck();
+    renderDeckMaster();
+  }
+}
+
+function renderDeck() {
+  const list = document.getElementById('deckList');
+  const count = document.getElementById('deckCount');
+  const status = document.getElementById('statusBar');
+  
+  count.textContent = `${deckManager.deck.length}/40`;
+  
+  const isValid = deckManager.isValid();
+  status.className = 'status-bar ' + (isValid ? 'valid' : 'invalid');
+  const extraDeckText = deckManager.extraDeck.length > 0 ? ` • Extra: ${deckManager.extraDeck.length}/15` : '';
+  status.textContent = isValid 
+    ? `✓ Deck ready! ${deckManager.deck.length}/40 cards${extraDeckText}` 
+    : `Deck: ${deckManager.deck.length}/40 cards (need 30+ to play)${extraDeckText}`;
+  
+  if (deckManager.deck.length === 0) {
+    list.innerHTML = '<p class="muted" style="text-align:center;margin-top:20px;">Click cards to add them</p>';
+    renderDeckMaster();
+    return;
+  }
+  
+  // Group by card
+  const groups = new Map();
+  deckManager.deck.forEach((card, idx) => {
+    if (!groups.has(card.id)) {
+      groups.set(card.id, { card, indices: [] });
+    }
+    groups.get(card.id).indices.push(idx);
+  });
+  
+  list.innerHTML = '';
+  groups.forEach(({ card, indices }) => {
+    const div = document.createElement('div');
+    div.className = 'deck-card';
+    const isMaster = deckManager.deckLeader && deckManager.deckLeader.id === card.id;
+    div.innerHTML = `
+      <img src="${card.getImgPath()}" onerror="this.src='${card.getApiImgPath()}'">
+      <div class="info">
+        <div class="name">${isMaster ? '👑 ' : ''}${card.name} ${indices.length > 1 ? `×${indices.length}` : ''}</div>
+        <div class="stats">ATK ${card.atk} / DEF ${card.def} / ★${card.level}</div>
+      </div>
+      <span class="remove">✕</span>
+    `;
+    div.onclick = (e) => {
+      if (e.target.classList.contains('remove')) {
+        const removedIdx = indices[indices.length - 1];
+        const removedCard = deckManager.deck[removedIdx];
+        deckManager.removeCard(removedIdx);
+        // If the removed card was the deck master, clear it
+        if (deckManager.deckLeader && deckManager.deckLeader.id === removedCard.id) {
+          // Check if there are still copies of this card in the deck
+          if (!deckManager.deck.some(c => c.id === removedCard.id)) {
+            deckManager.deckLeader = null;
+            deckManager.save();
+          }
+        }
+        renderDeck();
+      } else {
+        // Right-click or Ctrl+click to set as master
+        if (e.ctrlKey || e.button === 2) {
+          e.preventDefault();
+          setDeckMaster(card);
+        }
+      }
+    };
+    div.oncontextmenu = (e) => {
+      e.preventDefault();
+      setDeckMaster(card);
+    };
+    div.onmouseenter = () => showPreview(card);
+    list.appendChild(div);
+  });
+  
+  renderDeckMaster();
+}
+
+function renderExtraDeck() {
+  const list = document.getElementById('extraDeckList');
+  const count = document.getElementById('extraDeckCount');
+  
+  count.textContent = `${deckManager.extraDeck.length}/15`;
+  
+  if (deckManager.extraDeck.length === 0) {
+    list.innerHTML = '<p class="muted" style="text-align:center;margin-top:20px;">Click Extra Deck cards to add them</p>';
+    return;
+  }
+  
+  // Group by card
+  const groups = new Map();
+  deckManager.extraDeck.forEach((card, idx) => {
+    if (!groups.has(card.id)) {
+      groups.set(card.id, { card, indices: [] });
+    }
+    groups.get(card.id).indices.push(idx);
+  });
+  
+  list.innerHTML = '';
+  groups.forEach(({ card, indices }) => {
+    const div = document.createElement('div');
+    div.className = 'deck-card';
+    const summonType = getSummonType(card);
+    div.innerHTML = `
+      <img src="${card.getImgPath()}" onerror="this.src='${card.getApiImgPath()}'">
+      <div class="info">
+        <div class="name">${card.name} ${indices.length > 1 ? `×${indices.length}` : ''}</div>
+        <div class="stats">${summonType || 'Extra'} • ATK ${card.atk} / DEF ${card.def}${card.level ? ` / ★${card.level}` : ''}</div>
+      </div>
+      <span class="remove">✕</span>
+    `;
+    div.onclick = (e) => {
+      if (e.target.classList.contains('remove')) {
+        const removedIdx = indices[indices.length - 1];
+        deckManager.removeExtraDeckCard(removedIdx);
+        renderExtraDeck();
+      } else {
+        showPreview(card);
+      }
+    };
+    div.onmouseenter = () => showPreview(card);
+    list.appendChild(div);
+  });
+}
+
+// Helper to get summon type (same as in game.html)
+function getSummonType(card) {
+  if (!card || !card.type) return null;
+  const type = card.type.toLowerCase();
+  if (type.includes('fusion')) return 'Fusion';
+  if (type.includes('synchro')) return 'Synchro';
+  if (type.includes('xyz') || type.includes('xyz')) return 'XYZ';
+  if (type.includes('link')) return 'Link';
+  if (type.includes('pendulum')) return 'Pendulum';
+  return null;
+}
+
+function showPreview(card) {
+  selectedCard = card;
+  const preview = document.getElementById('preview');
+  preview.innerHTML = `
+    <img class="preview-image" src="${card.getImgPath()}" onerror="this.src='${card.getApiImgPath()}'">
+    <div class="preview-name">${card.name}</div>
+    <div class="preview-type">${card.race} / ${card.type}</div>
+    <div class="preview-attr attr-${card.attr}">${card.attr}</div>
+    <div class="preview-stats">ATK: ${card.atk} / DEF: ${card.def}</div>
+    <div class="preview-stats">Level: ★${card.level} / MOV: ${card.mov}</div>
+    <div class="preview-desc">${card.desc}</div>
+  `;
+}
+
+function addToDeck(card) {
+  // Check if it's an extra deck monster
+  if (deckManager.isExtraDeckMonster(card)) {
+    if (deckManager.addExtraDeckCard(card)) {
+      renderExtraDeck();
+      // Switch to extra deck tab if adding an extra deck card
+      if (currentDeckTab !== 'extra') {
+        switchDeckTab('extra');
+      }
+    } else {
+      const count = deckManager.extraDeck.filter(c => c.id === card.id).length;
+      if (count >= 3) {
+        alert('Maximum 3 copies of the same card allowed in Extra Deck!');
+      } else {
+        alert('Extra Deck is full (15 cards max)!');
+      }
+    }
+  } else {
+    if (deckManager.addCard(card)) {
+      renderDeck();
+    } else {
+      const count = deckManager.deck.filter(c => c.id === card.id).length;
+      if (count >= 3) {
+        alert('Maximum 3 copies of the same card allowed!');
+      } else {
+        alert('Deck is full (40 cards max)!');
+      }
+    }
+  }
+}
+
+function filterCards() {
+  currentFilter.query = document.getElementById('searchInput').value;
+  renderCardGrid();
+}
+
+function setAttrFilter(btn, attr) {
+  // Only remove active from attribute filter buttons
+  document.querySelectorAll('.filter-btn[data-attr]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter.attr = attr;
+  renderCardGrid();
+}
+
+function setTypeFilter(btn, type) {
+  // Only remove active from type filter buttons
+  document.querySelectorAll('.filter-btn[data-type]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter.type = type;
+  renderCardGrid();
+}
+
+// ===== SAVE / LOAD =====
+
+function saveDeckAs() {
+  const name = document.getElementById('deckNameInput').value.trim();
+  if (!name) {
+    alert('Please enter a deck name!');
+    return;
+  }
+  
+  deckManager.saveAs(name);
+  alert(`Deck "${name}" saved!`);
+}
+
+function showLoadModal() {
+  const modal = document.getElementById('loadModal');
+  const list = document.getElementById('savedDecksList');
+  const decks = deckManager.getSavedDecksList();
+  
+  if (decks.length === 0) {
+    list.innerHTML = '<p class="muted" style="text-align:center;padding:20px;">No saved decks yet</p>';
+  } else {
+    list.innerHTML = '';
+    decks.forEach(deck => {
+      const div = document.createElement('div');
+      div.className = 'saved-deck-item';
+      const date = new Date(deck.savedAt).toLocaleDateString();
+      const extraDeckCount = deck.extraDeck ? deck.extraDeck.length : 0;
+      const extraDeckText = extraDeckCount > 0 ? ` • Extra: ${extraDeckCount}` : '';
+      div.innerHTML = `
+        <div class="deck-info" onclick="loadSavedDeck('${deck.name}')">
+          <div class="deck-title">${deck.name}</div>
+          <div class="deck-meta">${deck.cards.length} cards${extraDeckText} • Saved ${date}</div>
+        </div>
+        <span class="deck-delete" onclick="event.stopPropagation(); deleteSavedDeck('${deck.name}')">🗑️</span>
+      `;
+      list.appendChild(div);
+    });
+  }
+  
+  modal.classList.add('active');
+}
+
+function closeLoadModal() {
+  document.getElementById('loadModal').classList.remove('active');
+}
+
+function loadSavedDeck(name) {
+  if (deckManager.loadDeck(name)) {
+    document.getElementById('deckNameInput').value = deckManager.deckName;
+    renderDeck();
+    renderExtraDeck();
+    renderDeckMaster();
+    closeLoadModal();
+  }
+}
+
+function deleteSavedDeck(name) {
+  if (confirm(`Delete deck "${name}"?`)) {
+    deckManager.deleteDeck(name);
+    showLoadModal(); // Refresh the list
+  }
+}
+
+// ===== IMPORT / EXPORT =====
+
+function exportDeck() {
+  if (deckManager.deck.length === 0) {
+    alert('Your deck is empty!');
+    return;
+  }
+  
+  const name = document.getElementById('deckNameInput').value.trim() || 'deck';
+  deckManager.deckName = name;
+  
+  const json = deckManager.exportToJSON();
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name.replace(/[^a-z0-9]/gi, '_')}.json`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+}
+
+function importDeck(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (deckManager.importFromJSON(e.target.result)) {
+      document.getElementById('deckNameInput').value = deckManager.deckName;
+      renderDeck();
+      alert('Deck imported successfully!');
+    } else {
+      alert('Failed to import deck. Invalid format.');
+    }
+  };
+  reader.readAsText(file);
+  
+  // Reset input
+  event.target.value = '';
+}
+
+function randomDeck() {
+  if (deckManager.deck.length > 0 && !confirm('This will replace your current deck. Continue?')) {
+    return;
+  }
+  deckManager.createRandomDeck();
+  document.getElementById('deckNameInput').value = 'Random Deck';
+  renderDeck();
+}
+
+function clearDeck() {
+  if (deckManager.deck.length === 0) return;
+  if (confirm('Clear your entire deck?')) {
+    deckManager.clear();
+    document.getElementById('deckNameInput').value = 'Untitled Deck';
+    renderDeck();
+  }
+}
+
+// Close modal on outside click
+document.getElementById('loadModal').addEventListener('click', (e) => {
+  if (e.target.id === 'loadModal') closeLoadModal();
+});
+
+init();
+</script>
+</body>
+</html>

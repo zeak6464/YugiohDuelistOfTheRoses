@@ -1,0 +1,4588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duelist of the Roses - Battle</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    #game {
+      display: none;
+      height: 100vh;
+      gap: 16px;
+      padding: 16px;
+      background: 
+        radial-gradient(ellipse at 30% 20%, rgba(139,26,26,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(26,58,107,0.15) 0%, transparent 50%),
+        var(--bg-dark);
+    }
+
+    #game.loaded { display: flex; }
+
+    .sidebar-left {
+      width: 240px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #boardContainer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      border-radius: 8px;
+      box-shadow: 
+        0 0 40px rgba(201,162,39,0.1),
+        0 8px 32px rgba(0,0,0,0.8);
+      border: 2px solid rgba(201,162,39,0.3);
+    }
+
+    .hand {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 4px;
+      min-height: 140px;
+    }
+
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      font-family: 'MedievalSharp', cursive;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .log-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lp-bar {
+      height: 8px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .lp-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .lp-fill.player { background: linear-gradient(90deg, var(--royal-blue), #4a7ac7); }
+    .lp-fill.enemy { background: linear-gradient(90deg, var(--crimson), #c74a4a); }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .game-over-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .game-over-content {
+      background: linear-gradient(135deg, rgba(26,58,107,0.95), rgba(107,26,26,0.95));
+      border: 3px solid var(--gold);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 500px;
+      box-shadow: 
+        0 0 60px rgba(201,162,39,0.5),
+        0 20px 60px rgba(0,0,0,0.8);
+      animation: slideUp 0.5s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .game-over-title {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-shadow: 
+        0 0 20px rgba(201,162,39,0.8),
+        0 4px 8px rgba(0,0,0,0.8);
+      letter-spacing: 4px;
+    }
+
+    .game-over-title.victory {
+      color: var(--gold);
+    }
+
+    .game-over-title.defeat {
+      color: var(--crimson);
+    }
+
+    .game-over-message {
+      font-size: 18px;
+      color: var(--text);
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+
+    .game-over-stats {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .game-over-stats div {
+      display: flex;
+      justify-content: space-between;
+      margin: 8px 0;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .game-over-stats .stat-label {
+      color: var(--text-muted);
+    }
+
+    .game-over-stats .stat-value {
+      color: var(--gold);
+      font-weight: bold;
+    }
+
+    .game-over-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .game-over-buttons .btn {
+      min-width: 150px;
+      padding: 14px 24px;
+      font-size: 16px;
+    }
+
+    #cardPreview {
+      min-height: 180px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    #cardPreview.empty {
+      color: var(--text-muted);
+      font-style: italic;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #previewImg {
+      width: 100px;
+      height: 145px;
+      object-fit: cover;
+      object-position: top;
+      border-radius: 4px;
+      border: 1px solid var(--gold);
+      background: var(--bg-card);
+    }
+
+    .preview-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold-light);
+      margin-bottom: 6px;
+    }
+
+    .preview-stats {
+      font-family: 'MedievalSharp', cursive;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .preview-attr {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      margin-bottom: 6px;
+    }
+
+    .preview-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      max-height: 60px;
+      overflow: hidden;
+    }
+
+    .preview-type {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .terrain-legend {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 9px;
+    }
+
+    .terrain-legend span {
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      font-size: 11px;
+      padding: 8px 12px;
+    }
+
+    /* Summoning Menu */
+    .summon-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      backdrop-filter: blur(2px);
+    }
+
+    .summon-menu-content {
+      background: linear-gradient(135deg, rgba(26,58,107,0.95), rgba(107,26,26,0.95));
+      border: 3px solid var(--gold);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 320px;
+      box-shadow: 
+        0 0 40px rgba(201,162,39,0.5),
+        0 10px 40px rgba(0,0,0,0.8);
+    }
+
+    .summon-menu-title {
+      color: var(--gold);
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .summon-menu-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .summon-option {
+      background: rgba(0,0,0,0.4);
+      border: 2px solid rgba(201,162,39,0.5);
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      color: var(--text);
+    }
+
+    .summon-option:hover {
+      background: rgba(201,162,39,0.2);
+      border-color: var(--gold);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(201,162,39,0.4);
+    }
+
+    .summon-option:active {
+      transform: translateY(0);
+    }
+
+    .option-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .option-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--gold-light);
+    }
+  </style>
+</head>
+<body>
+
+<a href="index.html" class="btn btn-secondary back-link">← Menu</a>
+
+<div id="loading">
+  <h1>Duelist of the Roses</h1>
+  <div class="spinner"></div>
+  <div class="status" id="loadStatus">Loading card database...</div>
+</div>
+
+<div id="game">
+  <div class="sidebar-left">
+    <div class="panel log-panel">
+      <div class="panel-title">Battle Log</div>
+      <div id="log" class="muted"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Terrain</div>
+      <div id="terrainLegend" class="terrain-legend">
+        <!-- Generated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <div id="boardContainer">
+    <canvas id="board" width="770" height="770"></canvas>
+  </div>
+
+  <div class="sidebar">
+    <div class="panel">
+      <div class="panel-title">
+        <span>Duel Status</span>
+        <span id="turnIndicator">Your Turn</span>
+      </div>
+      <div class="info-row">
+        <span>Your Deck Leader</span>
+        <span id="playerLP">3000 LP</span>
+      </div>
+      <div class="lp-bar"><div class="lp-fill player" id="playerLPBar" style="width:100%"></div></div>
+      <div class="info-row" style="margin-top:12px">
+        <span>Enemy Deck Leader</span>
+        <span id="enemyLP">3000 LP</span>
+      </div>
+      <div class="lp-bar"><div class="lp-fill enemy" id="enemyLPBar" style="width:100%"></div></div>
+      <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button id="endTurn">End Turn</button>
+        <span class="muted">Deck: <span id="deckCount">0</span></span>
+        <button id="viewGraveyard" style="padding:4px 8px; font-size:11px;">Graveyard (<span id="graveyardCount">0</span>)</button>
+        <button id="viewExtraDeck" style="padding:4px 8px; font-size:11px;">Extra Deck (<span id="extraDeckCount">0</span>)</button>
+        <span class="muted" style="font-size:10px;">(Auto-draw at turn start)</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Card Preview</div>
+      <div id="cardPreview" class="empty">Hover over a card</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <span>Your Hand</span>
+        <span class="muted" style="font-size:9px;">Click card, then click summon area</span>
+      </div>
+      <div class="hand" id="handUI"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Summoning Menu Overlay -->
+<div id="summonMenu" class="summon-menu" style="display:none;">
+  <div class="summon-menu-content">
+    <div class="summon-menu-title">Summon Card</div>
+    <div class="summon-menu-options">
+      <button class="summon-option" data-position="ATK" data-faceup="true">
+        <div class="option-icon">⚔️</div>
+        <div class="option-label">ATK (Face-Up)</div>
+      </button>
+      <button class="summon-option" data-position="ATK" data-faceup="false">
+        <div class="option-icon">❓</div>
+        <div class="option-label">ATK (Face-Down)</div>
+      </button>
+      <button class="summon-option" data-position="DEF" data-faceup="true">
+        <div class="option-icon">🛡️</div>
+        <div class="option-label">DEF (Face-Up)</div>
+      </button>
+      <button class="summon-option" data-position="DEF" data-faceup="false">
+        <div class="option-icon">❓</div>
+        <div class="option-label">DEF (Face-Down)</div>
+      </button>
+    </div>
+    <button class="btn btn-secondary" onclick="closeSummonMenu()" style="margin-top:10px;width:100%;">Cancel</button>
+  </div>
+</div>
+
+<!-- Win/Lose Screen -->
+<div id="gameOverScreen" class="game-over-screen" style="display:none;">
+  <div class="game-over-content">
+    <div id="gameOverTitle" class="game-over-title"></div>
+    <div id="gameOverMessage" class="game-over-message"></div>
+    <div id="gameOverStats" class="game-over-stats"></div>
+    <div class="game-over-buttons">
+      <button class="btn" onclick="restartGame()">🔄 Play Again</button>
+      <a href="index.html" class="btn btn-secondary">← Main Menu</a>
+    </div>
+  </div>
+</div>
+
+<!-- Graveyard Viewer -->
+<div id="graveyardScreen" class="game-over-screen" style="display:none;">
+  <div class="game-over-content" style="max-width:800px; max-height:80vh; overflow-y:auto;">
+    <div class="game-over-title" style="margin-bottom:20px;">Graveyard</div>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <button class="btn" id="viewMyGraveyard" style="flex:1;">Your Graveyard (<span id="myGraveyardCount">0</span>)</button>
+      <button class="btn" id="viewEnemyGraveyard" style="flex:1;">Enemy Graveyard (<span id="enemyGraveyardCount">0</span>)</button>
+    </div>
+    <div id="graveyardContent" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px;">
+      <!-- Graveyard cards will be displayed here -->
+    </div>
+    <div style="margin-top:20px; text-align:center;">
+      <button class="btn" onclick="closeGraveyard()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extra Deck Viewer -->
+<div id="extraDeckScreen" class="game-over-screen" style="display:none;">
+  <div class="game-over-content" style="max-width:800px; max-height:80vh; overflow-y:auto;">
+    <div class="game-over-title" style="margin-bottom:20px;">Extra Deck</div>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <button class="btn" id="viewMyExtraDeck" style="flex:1;">Your Extra Deck (<span id="myExtraDeckCount">0</span>)</button>
+      <button class="btn" id="viewEnemyExtraDeck" style="flex:1;">Enemy Extra Deck (<span id="enemyExtraDeckCount">0</span>)</button>
+    </div>
+    <div id="extraDeckContent" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px;">
+      <!-- Extra deck cards will be displayed here -->
+    </div>
+    <div style="margin-top:20px; text-align:center;">
+      <button class="btn" onclick="closeExtraDeck()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/cards.js"></script>
+<script src="js/multiplayer.js"></script>
+<script src="js/p2p.js"></script>
+<script src="js/campaign.js"></script>
+<script>
+/* ========== GAME CONFIG ========== */
+const COLS = 7, ROWS = 7;
+const TILE_SIZE = 110;
+const PLAYER_SIDE = 1;
+const START_HAND = 5;
+const MAX_LP = 3000;
+
+/* ========== TERRAIN (uses TERRAIN from cards.js) ========== */
+// Terrain images cache
+const terrainImages = {};
+
+function loadTerrainImages() {
+  let loadedCount = 0;
+  const total = Object.keys(TERRAIN).length;
+  
+      // Alternative URLs for problematic terrains (with correct hash paths)
+      const altUrls = {
+        TOON: [
+          'https://ms.yugipedia.com/6/68/DOR-ToonSquare-Textures.png'
+        ],
+        LABYRINTH: [
+          'https://ms.yugipedia.com/8/8a/DOR-LabyrinthSquare-Textures.png'
+        ],
+        CRUSH: [
+          'https://ms.yugipedia.com/9/9b/DOR-CrushSquare-Textures.png'
+        ]
+      };
+  
+  function tryLoadImage(key, urlIndex = 0) {
+    const img = new Image();
+    const urls = altUrls[key] || [TERRAIN[key].image];
+    const url = urls[urlIndex] || TERRAIN[key].image;
+    
+    img.onload = () => {
+      loadedCount++;
+      console.log(`✓ Terrain image loaded: ${key} (${loadedCount}/${total})`);
+      terrainImages[key] = img;
+    };
+    
+    img.onerror = () => {
+      // Try next URL if available
+      if (urlIndex < urls.length - 1) {
+        console.log(`Trying alternative URL for ${key}...`);
+        tryLoadImage(key, urlIndex + 1);
+      } else {
+        loadedCount++;
+        console.warn(`⚠ Terrain image failed: ${key}, using color fallback`);
+        img.failed = true;
+        terrainImages[key] = img;
+      }
+    };
+    
+    img.src = url;
+    if (!terrainImages[key]) terrainImages[key] = img; // Set immediately for reference
+  }
+  
+  for (const key in TERRAIN) {
+    tryLoadImage(key);
+  }
+}
+
+function renderTerrainLegend() {
+  const legend = document.getElementById('terrainLegend');
+  if (!legend) return;
+  
+  const terrains = ['NORMAL', 'FOREST', 'MEADOW', 'WASTELAND', 'MOUNTAIN', 'SEA', 'DARK'];
+  legend.innerHTML = terrains.map(key => {
+    const t = TERRAIN[key];
+    return `<span style="background:${t.color};padding:2px 6px;border-radius:3px;">${t.name}</span>`;
+  }).join('');
+}
+
+function generateTerrainMap() {
+  // Skip custom terrain in campaign mode (check URL parameter)
+  const urlParams = new URLSearchParams(window.location.search);
+  const isCampaignMode = urlParams.get('mode') === 'campaign';
+  
+  // Try to load custom terrain map first (but not in campaign mode)
+  if (!isCampaignMode) {
+    const customTerrain = localStorage.getItem('dotr_active_terrain');
+    if (customTerrain) {
+      try {
+        const terrain = JSON.parse(customTerrain);
+        if (terrain && Array.isArray(terrain) && terrain.length === ROWS) {
+          return terrain;
+        }
+      } catch (e) {
+        console.error('Failed to load custom terrain:', e);
+      }
+    }
+  }
+  
+  // Default classic DOTR style battlefield layout
+  const map = [];
+  for (let y = 0; y < ROWS; y++) {
+    map[y] = [];
+    for (let x = 0; x < COLS; x++) {
+      // Base rows are normal (deck leader areas)
+      if (y === 0 || y === ROWS - 1) map[y][x] = 'NORMAL';
+      // Center column special terrain
+      else if (x === 3 && y === 3) map[y][x] = 'DARK';
+      else if (x === 3 && (y === 2 || y === 4)) map[y][x] = 'MOUNTAIN';
+      // Water lanes
+      else if ((x === 1 || x === 5) && y === 3) map[y][x] = 'SEA';
+      // Corner mountains
+      else if ((x === 0 || x === 6) && (y === 2 || y === 4)) map[y][x] = 'MOUNTAIN';
+      // Forest patches
+      else if ((x === 2 || x === 4) && (y === 1 || y === 5)) map[y][x] = 'FOREST';
+      else if ((x === 2 || x === 4) && y === 3) map[y][x] = 'FOREST';
+      // Meadow areas
+      else if ((x === 1 || x === 5) && (y === 1 || y === 5)) map[y][x] = 'MEADOW';
+      else if ((x === 1 || x === 5) && (y === 2 || y === 4)) map[y][x] = 'MEADOW';
+      // Wasteland edges
+      else if ((x === 0 || x === 6) && (y === 1 || y === 5)) map[y][x] = 'WASTELAND';
+      else if ((x === 0 || x === 6) && y === 3) map[y][x] = 'WASTELAND';
+      else map[y][x] = 'NORMAL';
+    }
+  }
+  return map;
+}
+
+// Generate terrain map for campaign mode with specific terrain type
+function generateCampaignTerrain(primaryTerrain) {
+  const map = [];
+  for (let y = 0; y < ROWS; y++) {
+    map[y] = [];
+    for (let x = 0; x < COLS; x++) {
+      // Base rows are normal (deck leader areas)
+      if (y === 0 || y === ROWS - 1) {
+        map[y][x] = 'NORMAL';
+      } else {
+        // Fill with primary terrain type, with some variation
+        const rand = Math.random();
+        if (rand < 0.6) {
+          map[y][x] = primaryTerrain;
+        } else if (rand < 0.8) {
+          // Some normal tiles
+          map[y][x] = 'NORMAL';
+        } else {
+          // Some variation based on terrain type
+          if (primaryTerrain === 'FOREST') {
+            map[y][x] = Math.random() < 0.5 ? 'MEADOW' : 'NORMAL';
+          } else if (primaryTerrain === 'WATER' || primaryTerrain === 'SEA') {
+            map[y][x] = Math.random() < 0.5 ? 'NORMAL' : 'MEADOW';
+          } else if (primaryTerrain === 'WASTELAND') {
+            map[y][x] = Math.random() < 0.5 ? 'NORMAL' : 'MOUNTAIN';
+          } else {
+            map[y][x] = 'NORMAL';
+          }
+        }
+      }
+    }
+  }
+  return map;
+}
+
+/* ========== UNIT CLASS ========== */
+class Unit {
+  constructor(card, owner, x, y, position = 'ATK', faceUp = true) {
+    if (!card) {
+      throw new Error('Unit constructor: card is required');
+    }
+    if (card.atk === undefined || card.def === undefined) {
+      console.error('Invalid card passed to Unit constructor:', card);
+      throw new Error('Unit constructor: card must have atk and def properties');
+    }
+    this.card = card;
+    this.owner = owner;
+    this.x = x; this.y = y;
+    this.atk = card.atk || 0;
+    this.def = card.def || 0;
+    this.mov = card.mov || 1;
+    this.position = position; // 'ATK' or 'DEF'
+    this.faceUp = faceUp; // true = face-up, false = face-down
+    this.hasMoved = false;
+    this.hasActed = false;
+    this.uid = Math.random().toString(36).slice(2, 9);
+    this.isDeckLeader = false;
+    
+    // Link monster properties
+    this.linkArrows = this.getLinkArrows(); // Array of arrow directions
+    this.linkRating = this.getLinkRating(); // Link rating (1-8)
+    
+    // XYZ monster properties
+    this.xyzMaterials = []; // Array of material cards attached as overlays
+  }
+  
+  // Get link arrows from card data
+  getLinkArrows() {
+    if (!this.isLinkMonster()) return [];
+    
+    // Try to parse from linkmarkers property (YGOPRODeck format)
+    if (this.card.linkmarkers) {
+      return this.card.linkmarkers;
+    }
+    
+    // Try to parse from linkval (link rating) and desc
+    // Default to all 8 directions if link rating is high
+    const linkRating = this.getLinkRating();
+    if (linkRating >= 4) {
+      // High link rating - default to all directions
+      return ['Top', 'Top-Right', 'Right', 'Bottom-Right', 'Bottom', 'Bottom-Left', 'Left', 'Top-Left'];
+    } else if (linkRating >= 2) {
+      // Medium link rating - default to 4 directions
+      return ['Top', 'Right', 'Bottom', 'Left'];
+    } else {
+      // Low link rating - default to 2 directions
+      return ['Top', 'Bottom'];
+    }
+  }
+  
+  // Get link rating from card
+  getLinkRating() {
+    if (!this.isLinkMonster()) return 0;
+    
+    // Try linkval property first
+    if (this.card.linkval) return this.card.linkval;
+    
+    // Try to parse from level (some APIs store link rating in level)
+    if (this.card.level) return this.card.level;
+    
+    // Default to 1 if it's a link monster but no rating found
+    return 1;
+  }
+  
+  // Check if this is a Link monster
+  isLinkMonster() {
+    if (!this.card || !this.card.type) return false;
+    return this.card.type.toLowerCase().includes('link');
+  }
+  
+  // Check if this is an XYZ monster
+  isXYZMonster() {
+    if (!this.card || !this.card.type) return false;
+    return this.card.type.toLowerCase().includes('xyz');
+  }
+  
+  // Get link zones (adjacent tiles this link monster points to)
+  getLinkZones() {
+    if (!this.isLinkMonster() || this.linkArrows.length === 0) return [];
+    
+    const zones = [];
+    const arrowMap = {
+      'Top': { dx: 0, dy: -1 },
+      'Top-Right': { dx: 1, dy: -1 },
+      'Right': { dx: 1, dy: 0 },
+      'Bottom-Right': { dx: 1, dy: 1 },
+      'Bottom': { dx: 0, dy: 1 },
+      'Bottom-Left': { dx: -1, dy: 1 },
+      'Left': { dx: -1, dy: 0 },
+      'Top-Left': { dx: -1, dy: -1 }
+    };
+    
+    this.linkArrows.forEach(arrow => {
+      const dir = arrowMap[arrow];
+      if (dir) {
+        const nx = this.x + dir.dx;
+        const ny = this.y + dir.dy;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+          zones.push({ x: nx, y: ny });
+        }
+      }
+    });
+    
+    return zones;
+  }
+  
+  // Uses the terrain bonus system from cards.js (based on Race/Type, not Attribute)
+  getTerrainBonus(terrain) {
+    return getTerrainBonus(this.card, terrain);
+  }
+  
+  getEffectiveAtk(terrain) {
+    const bonus = this.getTerrainBonus(terrain);
+    return Math.max(0, this.atk + bonus.atk);
+  }
+  
+  getEffectiveDef(terrain) {
+    const bonus = this.getTerrainBonus(terrain);
+    return Math.max(0, this.def + bonus.def);
+  }
+  
+  getEffectiveMov(terrain) {
+    // Moving automatically switches to ATK, so always show potential movement
+    const bonus = this.getTerrainBonus(terrain);
+    return bonus.movBonus ? this.mov + 1 : this.mov;
+  }
+  
+  // Get combat power based on position
+  getCombatPower(terrain) {
+    if (this.position === 'DEF') {
+      return this.getEffectiveDef(terrain);
+    }
+    return this.getEffectiveAtk(terrain);
+  }
+  
+  // Toggle position (costs action)
+  togglePosition() {
+    this.position = this.position === 'ATK' ? 'DEF' : 'ATK';
+    this.hasActed = true;
+    // Switching to ATK from DEF also counts as moving
+    if (this.position === 'ATK') this.hasMoved = true;
+  }
+  
+  // Flip face-up (costs action, can be done once per turn)
+  flipFaceUp() {
+    if (this.faceUp) return false; // Already face-up
+    this.faceUp = true;
+    this.hasActed = true;
+    return true;
+  }
+  
+  isInDefense() {
+    return this.position === 'DEF';
+  }
+  
+  isFaceDown() {
+    return !this.faceUp;
+  }
+}
+
+/* ========== GAME STATE ========== */
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+let cardDb, deckManager;
+let multiplayerClient = null;
+let multiplayerMode = null; // 'local', 'online', or null (single player)
+let isPlayer1 = true; // For local multiplayer
+let previousActivePlayer = null; // Track previous active player for turn change detection
+
+const state = {
+  terrainMap: generateTerrainMap(),
+  deck: [], // Player 1's deck
+  aiDeck: [], // Player 2's deck (or AI deck in single player)
+  hand: [], // Player 1's hand
+  player2Hand: [], // Player 2's hand (for local multiplayer)
+  units: [],
+  deckLeaders: {
+    player: { x: 3, y: ROWS - 1, lp: MAX_LP },
+    enemy: { x: 3, y: 0, lp: MAX_LP }
+  },
+  graveyard: [], // Player 1's graveyard
+  enemyGraveyard: [], // Player 2's graveyard (or AI graveyard in single player)
+  extraDeck: [], // Player 1's extra deck (Fusion, Synchro, XYZ, Link)
+  enemyExtraDeck: [], // Player 2's extra deck
+  activePlayer: PLAYER_SIDE,
+  selectedCard: null,
+  selectedUnit: null,
+  hoveredTile: null,
+  gameOver: false,
+  hasSummoned: { player: false, enemy: false }, // Track if each player has summoned this turn
+  pendingSummon: null, // Store pending summon location {x, y}
+  pendingXYZMaterials: null, // Store XYZ materials for attachment when unit is created
+  pendingSpecialSummonType: null // Store special summon type (Fusion, Synchro, XYZ, Link)
+};
+
+/* ========== UTILITIES ========== */
+const rand = n => Math.floor(Math.random() * n);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// Helper to check if multiplayer mode requires network connection
+const isNetworkMultiplayer = () => multiplayerMode === 'online' || multiplayerMode === 'p2p' || multiplayerMode === 'local-network';
+
+function log(msg) {
+  const el = document.getElementById('log');
+  if (el) el.innerHTML = `<div>${msg}</div>` + el.innerHTML;
+}
+
+function setLoadStatus(msg) {
+  const el = document.getElementById('loadStatus');
+  if (el) el.textContent = msg;
+}
+
+/* ========== INIT ========== */
+async function initGame() {
+  console.log('========== [initGame] STARTING ==========');
+  console.log('[initGame] state.units at start:', state.units.length);
+  
+  // Check for multiplayer mode - URL parameter takes priority over localStorage
+  const urlParams = new URLSearchParams(window.location.search);
+  multiplayerMode = urlParams.get('mode') || localStorage.getItem('dotr_multiplayer_mode') || null;
+  const isCampaignMode = multiplayerMode === 'campaign';
+  console.log('[initGame] Multiplayer mode:', multiplayerMode, '(from URL:', urlParams.get('mode'), ', localStorage:', localStorage.getItem('dotr_multiplayer_mode'), ')');
+  console.log('[initGame] Campaign mode:', isCampaignMode);
+  
+  // Clear stale multiplayer data for fresh connection
+  const isNetwork = multiplayerMode === 'online' || multiplayerMode === 'p2p' || multiplayerMode === 'local-network';
+  if (isNetwork) {
+    // Always clear old IDs for a fresh start - server will assign new ones
+    localStorage.removeItem('dotr_player_id');
+    localStorage.removeItem('dotr_room_id');
+    console.log('[initGame] Cleared stale multiplayer data for fresh connection');
+  }
+  
+  // Load terrain images first
+  loadTerrainImages();
+  renderTerrainLegend();
+  
+  // Declare opponent deck leader callback at function scope so it's accessible everywhere
+  let opponentDeckLeaderCallback = null;
+  
+  cardDb = new CardDatabase();
+  await cardDb.load(setLoadStatus);
+  
+  // Initialize campaign manager if in campaign mode
+  let campaignManager = null;
+  let campaignDuel = null;
+  if (isCampaignMode) {
+    campaignManager = new CampaignManager(cardDb);
+    window.campaignManager = campaignManager; // Make globally accessible
+    const duelData = localStorage.getItem('dotr_campaign_duel');
+    if (duelData) {
+      try {
+        campaignDuel = JSON.parse(duelData);
+        console.log('[initGame] Campaign duel loaded:', campaignDuel);
+      } catch (e) {
+        console.error('[initGame] Failed to parse campaign duel data:', e);
+      }
+    }
+  }
+  
+  deckManager = new DeckManager(cardDb);
+  deckManager.load();
+  
+  // Use player's deck from Deck Editor (works in all modes including campaign)
+  // In campaign mode, player uses their custom deck while opponents use themed decks
+  if (deckManager.isValid()) {
+    state.deck = deckManager.getShuffledDeck();
+    // Load extra deck directly from deck manager
+    state.extraDeck = [...deckManager.extraDeck];
+    log('Using your custom deck!');
+  } else {
+    deckManager.createRandomDeck();
+    state.deck = deckManager.getShuffledDeck();
+    // Load extra deck directly from deck manager
+    state.extraDeck = [...deckManager.extraDeck];
+  }
+  
+  // Also separate any extra deck cards that might have been in the main deck (backwards compatibility)
+  const mainDeck = [];
+  const foundExtraDeck = [];
+  state.deck.forEach(card => {
+    if (isExtraDeckMonster(card)) {
+      foundExtraDeck.push(card);
+    } else {
+      mainDeck.push(card);
+    }
+  });
+  state.deck = mainDeck;
+  // Merge any found extra deck cards with the loaded extra deck
+  foundExtraDeck.forEach(card => {
+    if (!state.extraDeck.find(c => c.id === card.id)) {
+      state.extraDeck.push(card);
+    }
+  });
+  
+  if (state.extraDeck.length > 0) {
+    log(`<span style="color:var(--gold-light)">Extra Deck: ${state.extraDeck.length} cards</span>`);
+  }
+  
+  if (multiplayerMode === 'local') {
+    // Local multiplayer - both players use their decks
+    // For now, player 2 gets a random deck (can be improved)
+    const player2DeckManager = new DeckManager(cardDb);
+    player2DeckManager.createRandomDeck();
+    const player2FullDeck = player2DeckManager.getShuffledDeck();
+    
+    // Separate extra deck cards from player 2's deck
+    const player2MainDeck = [];
+    const player2ExtraDeck = [];
+    player2FullDeck.forEach(card => {
+      if (isExtraDeckMonster(card)) {
+        player2ExtraDeck.push(card);
+      } else {
+        player2MainDeck.push(card);
+      }
+    });
+    state.aiDeck = player2MainDeck;
+    state.enemyExtraDeck = player2ExtraDeck;
+    log('<span style="color:var(--gold-light)">Local Multiplayer Mode</span>');
+  } else if (multiplayerMode === 'online' || multiplayerMode === 'local-network') {
+    // Online or local network multiplayer - initialize WebSocket connection
+    const serverUrl = multiplayerMode === 'local-network' 
+      ? localStorage.getItem('dotr_local_ws_url') || 'ws://127.0.0.1:8082'
+      : localStorage.getItem('dotr_ws_url');
+    const roomId = localStorage.getItem('dotr_room_id');
+    const playerId = localStorage.getItem('dotr_player_id');
+    
+    if (serverUrl) {
+      multiplayerClient = new MultiplayerClient(
+        state,
+        (serverState) => {
+          // State update from server
+          console.log('[onStateUpdate] State update received. Units:', state.units.length, 'Active player:', state.activePlayer, 'Game over:', state.gameOver);
+          
+          // Check for game over - if game just ended, show the appropriate screen
+          const gameOverScreen = document.getElementById('gameOverScreen');
+          const isScreenHidden = !gameOverScreen.style.display || gameOverScreen.style.display === 'none';
+          if (state.gameOver && isScreenHidden) {
+            console.log('[onStateUpdate] Game over detected! Determining victory/loss...');
+            
+            // Determine if we won or lost based on LP
+            // If our leader's LP is 0, we lost; if enemy leader's LP is 0, we won
+            const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+            const myLP = isPlayer1 ? state.deckLeaders.player.lp : state.deckLeaders.enemy.lp;
+            const enemyLP = isPlayer1 ? state.deckLeaders.enemy.lp : state.deckLeaders.player.lp;
+            
+            console.log('[onStateUpdate] LP values - My LP:', myLP, 'Enemy LP:', enemyLP, 'isPlayer1:', isPlayer1);
+            
+            // Victory: We win if our LP > 0 AND enemy LP <= 0
+            // Defeat: We lose if our LP <= 0
+            let victory = false;
+            let reason = '';
+            
+            if (myLP <= 0) {
+              // Our leader's LP is 0 or less - we lost
+              victory = false;
+              const myLeader = state.units.find(u => u.owner === mySide && u.isDeckLeader);
+              reason = myLeader 
+                ? `Your Deck Leader ${myLeader.card.name} has been defeated!`
+                : 'Your Deck Leader has been defeated!';
+            } else if (enemyLP <= 0) {
+              // Enemy leader's LP is 0 or less - we won
+              victory = true;
+              const enemyLeader = state.units.find(u => u.owner !== mySide && u.isDeckLeader);
+              reason = enemyLeader
+                ? `You have defeated ${enemyLeader.card.name}!`
+                : 'You have defeated your opponent!';
+            } else {
+              // This shouldn't happen if gameOver is true, but handle it anyway
+              console.warn('[onStateUpdate] Game over but both LPs > 0? My LP:', myLP, 'Enemy LP:', enemyLP);
+              victory = false;
+              reason = 'Game Over';
+            }
+            
+            console.log('[onStateUpdate] Showing game over screen. Victory:', victory, 'My LP:', myLP, 'Enemy LP:', enemyLP);
+            showGameOverScreen(victory, reason);
+          }
+          
+          // Check if it just became our turn - if so, draw a card
+          if (isNetworkMultiplayer()) {
+            const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+            const isMyTurn = (state.activePlayer === mySide);
+            const wasMyTurn = previousActivePlayer !== null && (previousActivePlayer === mySide);
+            
+            // If it just became our turn (wasn't our turn before, is our turn now), draw a card
+            // Also handle first turn: if previousActivePlayer is null and it's Player 1's turn, draw
+            const shouldDraw = isMyTurn && !wasMyTurn && (
+              previousActivePlayer !== null || // Normal turn change
+              (previousActivePlayer === null && isPlayer1 && state.activePlayer === PLAYER_SIDE) // First turn for Player 1
+            );
+            
+            if (shouldDraw) {
+              console.log('[onStateUpdate] Turn just changed to us! Drawing card...', {
+                isMyTurn,
+                wasMyTurn,
+                previousActivePlayer,
+                activePlayer: state.activePlayer,
+                isPlayer1
+              });
+              if (state.deck.length > 0) {
+                drawCardToHand();
+                log('<span style="color:var(--gold-light)">Draw phase: 1 card drawn</span>');
+              } else {
+                log('Deck empty - no card drawn!');
+              }
+            }
+            
+            // Update previous active player
+            previousActivePlayer = state.activePlayer;
+            
+            // Explicitly update turn indicator
+            const turnText = isMyTurn
+              ? `${isPlayer1 ? 'Player 1' : 'Player 2'}'s Turn` 
+              : `${isPlayer1 ? 'Player 2' : 'Player 1'}'s Turn`;
+            document.getElementById('turnIndicator').innerText = turnText;
+          }
+          
+          // Always render - if we're receiving state updates, the game is ready
+          render();
+          renderHand();
+          updateLPDisplay();
+          updateGraveyardDisplay();
+          updateExtraDeckDisplay();
+        },
+        (message) => {
+          // Game started - but deck leaders may not be created yet!
+          // Don't call render() here - it will be called after deck leader creation
+          console.log('[onGameStart] Game started callback fired');
+          log(`<span style="color:var(--gold-light)">Game started! You are ${isPlayer1 ? 'Player 1' : 'Player 2'}</span>`);
+          log('<span style="color:var(--text-muted)">Waiting for opponent\'s deck leader info...</span>');
+          // Don't render here - deck leaders aren't created yet!
+        },
+        (error) => {
+          log(`<span style="color:var(--crimson)">Multiplayer error: ${error}</span>`);
+        }
+      );
+      
+      // Set up handler for opponent's deck leader (using method to also process any pending)
+      // IMPORTANT: This callback might be called SYNCHRONOUSLY if there's a pending leader,
+      // so we need to ensure our deck leader is created first. We'll set this up AFTER deck leader creation.
+      // Store the callback function but don't register it yet
+      opponentDeckLeaderCallback = (leaderInfo, opponentName) => {
+        // CRITICAL DEBUG: Check if state is the same object
+        const stateRef = state;
+        const unitsRef = state.units;
+        console.log('[onOpponentDeckLeader] RECEIVED!', {
+          leaderInfo,
+          opponentName,
+          isPlayer1,
+          isHost: multiplayerClient.isHost,
+          currentUnits: state.units.length,
+          stateUnitsRef: state.units,
+          stateUnitsArray: Array.from(state.units),
+          stateObjectId: state === stateRef ? 'SAME' : 'DIFFERENT!',
+          unitsArrayId: state.units === unitsRef ? 'SAME' : 'DIFFERENT!',
+          stateUnitsIsArray: Array.isArray(state.units),
+          stateUnitsConstructor: state.units?.constructor?.name
+        });
+        
+        // Use multiplayerClient.isHost directly since it's always up to date
+        const amIPlayer1 = multiplayerClient.isHost;
+        
+        // Create the opponent's deck leader
+        const enemyLeaderCard = new Card({
+          id: leaderInfo.id,
+          name: leaderInfo.name,
+          atk: leaderInfo.atk,
+          def: leaderInfo.def,
+          level: leaderInfo.level,
+          attribute: leaderInfo.attribute,
+          race: leaderInfo.race,
+          type: leaderInfo.type,
+          desc: leaderInfo.desc || ''
+        });
+        
+        // Determine position based on which player we are
+        // Player 1 (host): enemy at top (y=0, owner=-1)
+        // Player 2 (not host): enemy at bottom (y=6, owner=1)
+        const enemyOwner = amIPlayer1 ? -1 : PLAYER_SIDE;
+        const enemyY = amIPlayer1 ? 0 : ROWS - 1;
+        
+        console.log(`[onOpponentDeckLeader] Creating enemy: amIPlayer1=${amIPlayer1}, enemyOwner=${enemyOwner}, enemyY=${enemyY}`);
+        
+        // Check if enemy leader already exists (shouldn't, but just in case)
+        console.log(`[onOpponentDeckLeader] BEFORE - state.units.length: ${state.units.length}, state.units:`, JSON.stringify(state.units.map(u => ({name: u.card?.name, owner: u.owner}))));
+        const existingEnemy = state.units.find(u => u.isDeckLeader && u.owner === enemyOwner);
+        if (existingEnemy) {
+          console.log('[onOpponentDeckLeader] Enemy leader already exists, updating...');
+          existingEnemy.card = enemyLeaderCard;
+        } else {
+          const enemyUnit = new Unit(enemyLeaderCard, enemyOwner, 3, enemyY);
+          enemyUnit.isDeckLeader = true;
+          console.log(`[onOpponentDeckLeader] About to push enemyUnit to state.units (current length: ${state.units.length})`);
+          state.units.push(enemyUnit);
+          console.log(`[onOpponentDeckLeader] AFTER push - state.units.length: ${state.units.length}`);
+          console.log(`[onOpponentDeckLeader] Created enemy deck leader: ${enemyLeaderCard.name} at (3, ${enemyY}), owner=${enemyOwner}`);
+        }
+        
+        console.log(`[onOpponentDeckLeader] Total units now: ${state.units.length}`, state.units.map(u => ({
+          name: u.card?.name,
+          owner: u.owner,
+          x: u.x,
+          y: u.y,
+          isDeckLeader: u.isDeckLeader
+        })));
+        
+        log(`<span style="color:var(--crimson)">Opponent's Deck Leader: ${enemyLeaderCard.name}</span>`);
+        
+        render();
+        renderHand();
+        updateLPDisplay();
+      };
+      
+      try {
+        await multiplayerClient.connect(serverUrl, roomId, playerId);
+        // Determine which player we are based on isHost
+        isPlayer1 = multiplayerClient.isHost;
+        console.log(`[initGame] Connected to server, isPlayer1=${isPlayer1}, isHost=${multiplayerClient.isHost}`);
+        log(`<span style="color:var(--gold-light)">Connected to multiplayer server as ${isPlayer1 ? 'Player 1' : 'Player 2'}</span>`);
+        // Create opponent deck for online multiplayer (will be synced later)
+        const opponentDeckManager = new DeckManager(cardDb);
+        opponentDeckManager.createRandomDeck();
+        state.aiDeck = opponentDeckManager.getShuffledDeck();
+      } catch (error) {
+        log(`<span style="color:var(--crimson)">Failed to connect: ${error.message}</span>`);
+        multiplayerMode = null; // Fall back to single player
+      }
+    } else {
+      // No server URL - fall back to single player
+      multiplayerMode = null;
+    }
+  } else if (multiplayerMode === 'p2p') {
+      // P2P multiplayer - initialize WebRTC connection
+      const signalingUrl = localStorage.getItem('dotr_signaling_url');
+      const roomId = localStorage.getItem('dotr_room_id');
+      const playerId = localStorage.getItem('dotr_player_id');
+      
+      if (signalingUrl) {
+        multiplayerClient = new P2PClient(
+          state,
+          (update) => {
+            // Handle state update or action from peer
+            if (update.action) {
+              // Handle opponent's action - need to implement this
+              console.log('Received action from peer:', update.action);
+            } else if (update.state) {
+              // Handle state update
+              console.log('Received state update from peer:', update.state);
+            }
+            render();
+            renderHand();
+            updateLPDisplay();
+          },
+          (message) => {
+            // Game started
+            log('<span style="color:var(--gold-light)">P2P connection established! Game starting...</span>');
+            render();
+          },
+          (error) => {
+            log(`<span style="color:var(--crimson)">P2P error: ${error}</span>`);
+          }
+        );
+        
+        try {
+          await multiplayerClient.connect(signalingUrl, roomId, playerId);
+          log('<span style="color:var(--gold-light)">Connecting via P2P...</span>');
+        } catch (error) {
+          log(`<span style="color:var(--crimson)">Failed to connect: ${error.message}</span>`);
+          multiplayerMode = null; // Fall back to single player
+        }
+      } else {
+        multiplayerMode = null; // Fall back to single player
+      }
+      
+      // For P2P, opponent's deck will be synced when they connect
+      const player2DeckManager = new DeckManager(cardDb);
+      player2DeckManager.createRandomDeck();
+      state.aiDeck = player2DeckManager.getShuffledDeck();
+    } else {
+      // Single player - AI gets random deck
+      const aiDeckManager = new DeckManager(cardDb);
+      aiDeckManager.createRandomDeck();
+      state.aiDeck = aiDeckManager.getShuffledDeck();
+    }
+  
+  console.log('[initGame] REACHED DECK LEADER SETUP SECTION');
+  console.log('[initGame] state.deck.length:', state.deck.length);
+  console.log('[initGame] state.aiDeck.length:', state.aiDeck.length);
+  console.log('[initGame] multiplayerMode after connection:', multiplayerMode);
+  console.log('[initGame] isPlayer1:', isPlayer1);
+  
+  // Setup deck leaders - use a strong monster from each deck
+  // Pick the highest level monster as deck leader
+  const pickDeckLeader = (deck, storedLeader = null) => {
+    if (!deck || deck.length === 0) {
+      console.error('Deck is empty! Cannot pick deck leader.');
+      // Create a fallback card
+      return new Card({
+        id: 0,
+        name: 'Unknown Leader',
+        atk: 2000,
+        def: 2000,
+        level: 4,
+        attribute: 'DARK',
+        race: 'Warrior',
+        type: 'Normal',
+        desc: 'Fallback leader'
+      });
+    }
+    
+    // If a stored leader is provided and exists in the deck, use it
+    if (storedLeader) {
+      const leaderIdx = deck.findIndex(c => c && c.id === storedLeader.id);
+      if (leaderIdx >= 0) {
+        const leader = deck[leaderIdx];
+        deck.splice(leaderIdx, 1); // Remove from deck
+        console.log(`Using stored deck leader: ${leader.name}`);
+        return leader;
+      } else {
+        console.warn(`Stored deck leader (${storedLeader.name}) not found in deck, auto-selecting...`);
+      }
+    }
+    
+    // Auto-select: highest level, then highest ATK
+    let best = deck[0], bestIdx = 0;
+    for (let i = 1; i < deck.length; i++) {
+      if (deck[i] && deck[i].level && deck[i].atk) {
+        if (deck[i].level > best.level || (deck[i].level === best.level && deck[i].atk > best.atk)) {
+          best = deck[i]; bestIdx = i;
+        }
+      }
+    }
+    if (best && best.atk !== undefined) {
+      deck.splice(bestIdx, 1); // Remove from deck
+      console.log(`Auto-selected deck leader: ${best.name} (Level ${best.level}, ATK ${best.atk})`);
+      return best;
+    }
+    // Fallback if card is invalid
+    return new Card({
+      id: 0,
+      name: 'Unknown Leader',
+      atk: 2000,
+      def: 2000,
+      level: 4,
+      attribute: 'DARK',
+      race: 'Warrior',
+      type: 'Normal',
+      desc: 'Fallback leader'
+    });
+  };
+  
+  // Ensure decks are populated
+  console.log(`[initGame] Deck status - Player deck: ${state.deck.length} cards, AI deck: ${state.aiDeck.length} cards`);
+  
+  if (state.deck.length === 0) {
+    console.error('[initGame] Player deck is empty! Creating random deck...');
+    deckManager.createRandomDeck();
+    state.deck = deckManager.getShuffledDeck();
+    console.log(`[initGame] Created random player deck: ${state.deck.length} cards`);
+  }
+  if (state.aiDeck.length === 0 && !isNetworkMultiplayer()) {
+    // Only create AI deck if not in network multiplayer (we get opponent's leader from server)
+    if (isCampaignMode && campaignManager && campaignDuel && campaignDuel.opponent) {
+      // Campaign mode: Use opponent's themed deck
+      console.log('[initGame] Creating campaign opponent deck:', campaignDuel.opponent.name);
+      const opponentDeck = campaignManager.getOpponentDeck(campaignDuel.opponent);
+      if (opponentDeck && opponentDeck.length > 0) {
+        // Separate Extra Deck monsters from main deck
+        const aiMainDeck = [];
+        const aiExtraDeck = [];
+        opponentDeck.forEach(card => {
+          if (isExtraDeckMonster(card)) {
+            aiExtraDeck.push(card);
+          } else {
+            aiMainDeck.push(card);
+          }
+        });
+        state.aiDeck = aiMainDeck;
+        state.enemyExtraDeck = aiExtraDeck;
+        console.log(`[initGame] Created campaign opponent deck: ${state.aiDeck.length} main deck, ${state.enemyExtraDeck.length} extra deck`);
+        
+        // Set terrain if specified
+        if (campaignDuel.terrain) {
+          console.log('[initGame] Setting campaign terrain:', campaignDuel.terrain);
+          // Generate terrain map with specified terrain type
+          state.terrainMap = generateCampaignTerrain(campaignDuel.terrain);
+          renderTerrainLegend();
+        }
+        
+        // Show pre-duel dialogue
+        if (campaignDuel.opponent.dialogue && campaignDuel.opponent.dialogue.pre) {
+          setTimeout(() => {
+            showCampaignDialogue(campaignDuel.opponent.name, campaignDuel.opponent.avatar, campaignDuel.opponent.dialogue.pre);
+          }, 500);
+        }
+      } else {
+        // Fallback to random deck
+        const aiDeckManager = new DeckManager(cardDb);
+        aiDeckManager.createRandomDeck();
+        const aiFullDeck = aiDeckManager.getShuffledDeck();
+        // Separate Extra Deck monsters
+        const aiMainDeck = [];
+        const aiExtraDeck = [];
+        aiFullDeck.forEach(card => {
+          if (isExtraDeckMonster(card)) {
+            aiExtraDeck.push(card);
+          } else {
+            aiMainDeck.push(card);
+          }
+        });
+        state.aiDeck = aiMainDeck;
+        state.enemyExtraDeck = aiExtraDeck;
+        console.log(`[initGame] Fallback: Created random AI deck: ${state.aiDeck.length} main deck, ${state.enemyExtraDeck.length} extra deck`);
+      }
+    } else {
+      // Normal single player: random deck
+      console.log('[initGame] Creating AI deck for non-network mode...');
+      const aiDeckManager = new DeckManager(cardDb);
+      aiDeckManager.createRandomDeck();
+      const aiFullDeck = aiDeckManager.getShuffledDeck();
+      // Separate Extra Deck monsters
+      const aiMainDeck = [];
+      const aiExtraDeck = [];
+      aiFullDeck.forEach(card => {
+        if (isExtraDeckMonster(card)) {
+          aiExtraDeck.push(card);
+        } else {
+          aiMainDeck.push(card);
+        }
+      });
+      state.aiDeck = aiMainDeck;
+      state.enemyExtraDeck = aiExtraDeck;
+      console.log(`[initGame] Created AI deck: ${state.aiDeck.length} main deck, ${state.enemyExtraDeck.length} extra deck`);
+    }
+  }
+  
+  // Use stored deck leader if available, otherwise auto-select
+  console.log(`[initGame] Picking deck leader from deck of ${state.deck.length} cards...`);
+  const playerLeaderCard = pickDeckLeader(state.deck, deckManager.deckLeader);
+  console.log(`[initGame] Player leader card:`, playerLeaderCard ? { name: playerLeaderCard.name, atk: playerLeaderCard.atk } : 'NULL');
+  
+  // For network multiplayer, we don't need enemy leader card (we get it from opponent)
+  let enemyLeaderCard = null;
+  if (isNetworkMultiplayer()) {
+    enemyLeaderCard = null;
+  } else if (isCampaignMode && campaignManager && campaignDuel && campaignDuel.opponent) {
+    // Campaign mode: Use opponent's deck leader
+    enemyLeaderCard = campaignManager.getOpponentDeckLeader(campaignDuel.opponent, state.aiDeck);
+    if (enemyLeaderCard) {
+      // Remove leader from deck if it's in there
+      const leaderIdx = state.aiDeck.findIndex(c => c && c.id === enemyLeaderCard.id);
+      if (leaderIdx >= 0) {
+        state.aiDeck.splice(leaderIdx, 1);
+      }
+      console.log(`[initGame] Campaign enemy leader card:`, { name: enemyLeaderCard.name, atk: enemyLeaderCard.atk });
+    }
+  } else {
+    enemyLeaderCard = pickDeckLeader(state.aiDeck);
+    console.log(`[initGame] Enemy leader card:`, enemyLeaderCard ? { name: enemyLeaderCard.name, atk: enemyLeaderCard.atk } : 'NULL');
+  }
+  
+  // Validate player's leader card
+  if (!playerLeaderCard || !playerLeaderCard.atk) {
+    console.error('Invalid player leader card:', playerLeaderCard);
+    return;
+  }
+  
+  console.log(`[initGame] Creating deck leaders: multiplayerMode=${multiplayerMode}, isPlayer1=${isPlayer1}, isNetworkMultiplayer=${isNetworkMultiplayer()}`);
+  
+  // Position deck leaders based on which player we are
+  // In multiplayer, Player 1 is at bottom (y=6), Player 2 is at top (y=0)
+  let playerY, enemyY, playerOwner, enemyOwner;
+  
+  // For network multiplayer, use isPlayer1 to determine positions
+  if (isNetworkMultiplayer() && !isPlayer1) {
+    // Player 2 - we're at top, enemy (Player 1) at bottom
+    playerY = 0;  // Top row
+    enemyY = ROWS - 1;  // Bottom row
+    playerOwner = -1; // We are player -1
+    enemyOwner = PLAYER_SIDE; // Enemy is player 1
+    console.log('Creating deck leader for Player 2: Player at top (y=0)');
+  } else {
+    // Player 1 or single player - we're at bottom, enemy at top
+    playerY = ROWS - 1;  // Bottom row
+    enemyY = 0;  // Top row
+    playerOwner = isNetworkMultiplayer() ? PLAYER_SIDE : PLAYER_SIDE;
+    enemyOwner = -1;
+    console.log('Creating deck leader for Player 1: Player at bottom (y=6)');
+  }
+  
+  // Create OUR deck leader
+  console.log(`[initGame] Creating player unit: card=${playerLeaderCard.name}, owner=${playerOwner}, x=3, y=${playerY}`);
+  let createdLeaderCard = playerLeaderCard;
+  try {
+    const playerUnit = new Unit(playerLeaderCard, playerOwner, 3, playerY);
+    playerUnit.isDeckLeader = true;
+    state.units.push(playerUnit);
+    console.log(`[initGame] Player deck leader created! Units now: ${state.units.length}`, playerUnit);
+  } catch (error) {
+    console.error(`[initGame] ERROR creating player deck leader:`, error);
+    // Try to create with fallback
+    createdLeaderCard = new Card({
+      id: 0,
+      name: 'Fallback Leader',
+      atk: 2000,
+      def: 2000,
+      level: 4,
+      attribute: 'DARK',
+      race: 'Warrior',
+      type: 'Normal',
+      desc: 'Fallback leader'
+    });
+    const fallbackUnit = new Unit(createdLeaderCard, playerOwner, 3, playerY);
+    fallbackUnit.isDeckLeader = true;
+    state.units.push(fallbackUnit);
+    console.log(`[initGame] Created fallback deck leader`);
+  }
+  
+  const playerLabel = isNetworkMultiplayer() ? (isPlayer1 ? 'Player 1' : 'Player 2') : 'You';
+  log(`${playerLabel} Deck Leader: <span style="color:var(--gold-light)">${createdLeaderCard.name}</span>`);
+  
+  // For network multiplayer, send our deck leader info to the server
+  // Enemy deck leader will be created when we receive opponent's info
+  if (isNetworkMultiplayer() && multiplayerClient) {
+    console.log('[initGame] Sending deck leader info to server...', {
+      id: createdLeaderCard.id,
+      name: createdLeaderCard.name,
+      atk: createdLeaderCard.atk,
+      playerId: multiplayerClient.playerId
+    });
+    multiplayerClient.sendAction({
+      type: 'registerDeckLeader',
+      leader: {
+        id: createdLeaderCard.id,
+        name: createdLeaderCard.name,
+        atk: createdLeaderCard.atk,
+        def: createdLeaderCard.def,
+        level: createdLeaderCard.level,
+        attribute: createdLeaderCard.attr,
+        race: createdLeaderCard.race,
+        type: createdLeaderCard.type,
+        desc: createdLeaderCard.desc
+      }
+    });
+    log('<span style="color:var(--text-muted)">Waiting for opponent...</span>');
+    
+    // NOW register the callback - our deck leader is created, so it's safe
+    console.log('[initGame] Registering opponent deck leader callback AFTER our deck leader is created. state.units.length:', state.units.length);
+    if (opponentDeckLeaderCallback) {
+      multiplayerClient.setOpponentDeckLeaderCallback(opponentDeckLeaderCallback);
+    }
+  } else {
+    // Single player or local multiplayer - create enemy deck leader
+    if (!enemyLeaderCard || !enemyLeaderCard.atk) {
+      console.error('Invalid enemy leader card:', enemyLeaderCard);
+      return;
+    }
+    
+    const enemyUnit = new Unit(enemyLeaderCard, enemyOwner, 3, enemyY);
+    enemyUnit.isDeckLeader = true;
+    state.units.push(enemyUnit);
+    log(`Enemy Deck Leader: <span style="color:var(--crimson)">${enemyLeaderCard.name}</span>`);
+  }
+  
+  // Verify deck leaders were created
+  const deckLeaders = state.units.filter(u => u.isDeckLeader);
+  const mySide = isNetworkMultiplayer()
+    ? (isPlayer1 ? PLAYER_SIDE : -1)
+    : PLAYER_SIDE;
+  console.log(`[initGame] VERIFICATION - Total units: ${state.units.length}, Deck leaders: ${deckLeaders.length}`);
+  console.log(`[initGame] Deck leaders:`, deckLeaders.map(u => ({
+    name: u.card.name,
+    owner: u.owner,
+    x: u.x,
+    y: u.y,
+    isMine: u.owner === mySide
+  })));
+  console.log(`[initGame] All units:`, state.units.map(u => ({
+    name: u.card?.name,
+    owner: u.owner,
+    x: u.x,
+    y: u.y,
+    isDeckLeader: u.isDeckLeader
+  })));
+  
+  if (!isNetworkMultiplayer() && deckLeaders.length !== 2) {
+    console.error(`[initGame] ERROR: Expected 2 deck leaders, but found ${deckLeaders.length}!`);
+  }
+  
+  if (isNetworkMultiplayer() && deckLeaders.length < 1) {
+    console.error(`[initGame] ERROR: No deck leaders created for network multiplayer!`);
+  }
+  
+  // Force a render to show deck leader(s)
+  console.log('[initGame] Forcing initial render...');
+  render();
+  
+  // Draw starting hands
+  document.getElementById('deckCount').innerText = state.deck.length;
+  for (let i = 0; i < START_HAND; i++) {
+    drawCardToHand(); // Player 1
+    if (multiplayerMode === 'local') {
+      // Also draw for player 2 in local multiplayer
+      if (state.aiDeck.length > 0) {
+        const card = state.aiDeck.pop();
+        state.player2Hand.push(card);
+      }
+    }
+  }
+  
+  // Show game
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('game').classList.add('loaded');
+  
+  // Update UI labels for multiplayer
+  if (multiplayerMode) {
+    // Find the info rows and update their labels
+    const infoRows = document.querySelectorAll('.sidebar .info-row');
+    if (infoRows.length >= 2) {
+      const firstRowLabel = infoRows[0].querySelector('span');
+      const secondRowLabel = infoRows[1].querySelector('span');
+      if (isNetworkMultiplayer()) {
+        // Top label shows our deck leader, bottom shows enemy
+        if (firstRowLabel) firstRowLabel.textContent = isPlayer1 ? 'Player 1 Deck Leader' : 'Player 2 Deck Leader';
+        if (secondRowLabel) secondRowLabel.textContent = isPlayer1 ? 'Player 2 Deck Leader' : 'Player 1 Deck Leader';
+      } else {
+        if (firstRowLabel) firstRowLabel.textContent = 'Player 1 Deck Leader';
+        if (secondRowLabel) secondRowLabel.textContent = 'Player 2 Deck Leader';
+      }
+    }
+  }
+  
+  // Set initial active player - Player 1 goes first
+  if (isNetworkMultiplayer() && !isPlayer1) {
+    // Player 2 - wait for their turn
+    state.activePlayer = PLAYER_SIDE; // Player 1's turn first
+  } else {
+    state.activePlayer = PLAYER_SIDE; // Player 1 goes first
+  }
+  previousActivePlayer = null; // Initialize to null - will be set on first state update
+  
+  // Final verification that deck leaders were created
+  const finalLeaders = state.units.filter(u => u.isDeckLeader);
+  if (isNetworkMultiplayer()) {
+    // For network multiplayer, we only create our own deck leader initially
+    // Enemy deck leader is created when we receive opponent's info
+    if (finalLeaders.length >= 1) {
+      console.log(`[initGame] ✓ Created our deck leader. Waiting for opponent's deck leader...`);
+    } else {
+      console.error(`[initGame] ERROR: No deck leader created!`);
+    }
+  } else {
+    // For single player or local multiplayer, we should have both
+    if (finalLeaders.length !== 2) {
+      console.error(`[initGame] ERROR: Expected 2 deck leaders after initialization, but found ${finalLeaders.length}!`);
+      console.error('All units:', state.units.map(u => ({ name: u.card?.name, isLeader: u.isDeckLeader, owner: u.owner })));
+    } else {
+      console.log(`[initGame] ✓ Successfully created ${finalLeaders.length} deck leaders`);
+    }
+  }
+  
+  setupEventListeners();
+  render();
+  renderHand();
+  updateLPDisplay();
+  
+  // Update turn indicator
+  if (isNetworkMultiplayer()) {
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    const turnText = (state.activePlayer === mySide) 
+      ? `${isPlayer1 ? 'Player 1' : 'Player 2'}'s Turn` 
+      : `${isPlayer1 ? 'Player 2' : 'Player 1'}'s Turn`;
+    document.getElementById('turnIndicator').innerText = turnText;
+  } else if (multiplayerMode === 'local') {
+    document.getElementById('turnIndicator').innerText = "Player 1's Turn";
+  } else {
+    document.getElementById('turnIndicator').innerText = 'Your Turn';
+  }
+  
+  log('Welcome to <span style="color:var(--gold-light)">Duelist of the Roses</span>!');
+  if (multiplayerMode === 'local') {
+    log('<span style="color:var(--gold-light)">Local Multiplayer Mode - Players take turns!</span>');
+  } else if (multiplayerMode === 'online') {
+    log(`<span style="color:var(--gold-light)">Online Multiplayer Mode - You are ${isPlayer1 ? 'Player 1' : 'Player 2'}!</span>`);
+  }
+  log('Summon cards adjacent to your Deck Leader!');
+  log('You can summon 1 monster per turn.');
+  
+  // Draw 1 card at start of first turn (Player 1 goes first)
+  // This happens after UI is ready
+  setTimeout(() => {
+    // Only draw for active player at game start
+    const shouldDraw = isNetworkMultiplayer()
+      ? isPlayer1 && state.activePlayer === PLAYER_SIDE
+      : state.activePlayer === PLAYER_SIDE;
+    
+    if (shouldDraw && state.deck.length > 0) {
+      drawCardToHand();
+      log('<span style="color:var(--gold-light)">Draw phase: 1 card drawn</span>');
+    } else if (shouldDraw && state.deck.length === 0) {
+      log('Deck empty - no card drawn!');
+    }
+  }, 200);
+}
+
+/* ========== GAME FUNCTIONS ========== */
+function updateLPDisplay() {
+  // For network multiplayer, show correct LP based on which player we are
+  if (isNetworkMultiplayer()) {
+    console.log('[updateLPDisplay] Updating LP display. isPlayer1:', isPlayer1, 'LP values:', {
+      player: state.deckLeaders.player.lp,
+      enemy: state.deckLeaders.enemy.lp
+    });
+    if (isPlayer1) {
+      // Player 1 - show our LP on top, enemy on bottom
+      // state.deckLeaders.player = Player 1's LP
+      // state.deckLeaders.enemy = Player 2's LP
+      document.getElementById('playerLP').innerText = state.deckLeaders.player.lp + ' LP';
+      document.getElementById('enemyLP').innerText = state.deckLeaders.enemy.lp + ' LP';
+      document.getElementById('playerLPBar').style.width = (state.deckLeaders.player.lp / MAX_LP * 100) + '%';
+      document.getElementById('enemyLPBar').style.width = (state.deckLeaders.enemy.lp / MAX_LP * 100) + '%';
+    } else {
+      // Player 2 - show our LP on top, enemy on bottom
+      // NOTE: For Player 2, the storage is swapped:
+      // state.deckLeaders.player = Player 1's LP (enemy from Player 2's perspective)
+      // state.deckLeaders.enemy = Player 2's LP (player from Player 2's perspective)
+      document.getElementById('playerLP').innerText = state.deckLeaders.enemy.lp + ' LP';
+      document.getElementById('enemyLP').innerText = state.deckLeaders.player.lp + ' LP';
+      document.getElementById('playerLPBar').style.width = (state.deckLeaders.enemy.lp / MAX_LP * 100) + '%';
+      document.getElementById('enemyLPBar').style.width = (state.deckLeaders.player.lp / MAX_LP * 100) + '%';
+    }
+  } else {
+    // Single player or local multiplayer
+    document.getElementById('playerLP').innerText = state.deckLeaders.player.lp + ' LP';
+    document.getElementById('enemyLP').innerText = state.deckLeaders.enemy.lp + ' LP';
+    document.getElementById('playerLPBar').style.width = (state.deckLeaders.player.lp / MAX_LP * 100) + '%';
+    document.getElementById('enemyLPBar').style.width = (state.deckLeaders.enemy.lp / MAX_LP * 100) + '%';
+  }
+}
+
+// Show summoning menu
+function showSummonMenu() {
+  const menu = document.getElementById('summonMenu');
+  menu.style.display = 'flex';
+  
+  // Setup option buttons
+  const options = menu.querySelectorAll('.summon-option');
+  options.forEach(btn => {
+    btn.onclick = () => {
+      const position = btn.dataset.position;
+      const faceUp = btn.dataset.faceup === 'true';
+      performSummon(position, faceUp);
+    };
+  });
+}
+
+// Close summoning menu
+function closeSummonMenu() {
+  document.getElementById('summonMenu').style.display = 'none';
+  state.pendingSummon = null;
+}
+
+// Perform the actual summon
+function performSummon(position, faceUp) {
+  if (!state.selectedCard || !state.pendingSummon) return;
+  
+  // Determine which player we are and if it's our turn
+  let isMyTurn = false;
+  let currentHand, unitOwner, playerKey, playerText;
+  
+  if (multiplayerMode === 'local') {
+    const isPlayer2Turn = state.activePlayer === -1;
+    isMyTurn = true; // Already checked in click handler
+    currentHand = isPlayer2Turn ? state.player2Hand : state.hand;
+    unitOwner = isPlayer2Turn ? -1 : PLAYER_SIDE;
+    playerKey = isPlayer2Turn ? 'enemy' : 'player';
+    playerText = isPlayer2Turn ? 'Player 2' : 'You';
+  } else if (isNetworkMultiplayer()) {
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    isMyTurn = (state.activePlayer === mySide);
+    if (!isMyTurn) {
+      log('Not your turn!');
+      return;
+    }
+    currentHand = state.hand;
+    unitOwner = mySide;
+    playerKey = isPlayer1 ? 'player' : 'enemy';
+    playerText = isPlayer1 ? 'Player 1' : 'Player 2';
+  } else {
+    isMyTurn = (state.activePlayer === PLAYER_SIDE);
+    if (!isMyTurn) {
+      log('Not your turn!');
+      return;
+    }
+    currentHand = state.hand;
+    unitOwner = PLAYER_SIDE;
+    playerKey = 'player';
+    playerText = 'You';
+  }
+  
+  const { x, y } = state.pendingSummon;
+  
+  // Check if CRUSH terrain will destroy the monster
+  const summonTerrain = state.terrainMap[y][x];
+  const canEnter = canEnterTerrain(state.selectedCard, summonTerrain);
+  
+  if (canEnter === 'DESTROY') {
+    // CRUSH terrain destroys high ATK monsters
+    log(`<span style="color:var(--crimson)">${playerText}'s ${state.selectedCard.name} is destroyed by CRUSH terrain!</span>`);
+    currentHand.splice(currentHand.indexOf(state.selectedCard), 1);
+    state.selectedCard = null;
+    state.pendingSummon = null;
+    closeSummonMenu();
+    renderHand();
+    render();
+    return;
+  }
+  
+  // Check if this is a special summon with XYZ materials
+  const isSpecialSummon = state.pendingXYZMaterials !== null && state.pendingXYZMaterials !== undefined;
+  const isXYZSummon = state.pendingSpecialSummonType === 'XYZ';
+  
+  const newUnit = new Unit(state.selectedCard, unitOwner, x, y, position, faceUp);
+  
+  // Attach XYZ materials as overlays if this is an XYZ summon
+  if (isXYZSummon && state.pendingXYZMaterials && state.pendingXYZMaterials.length > 0) {
+    newUnit.xyzMaterials = [...state.pendingXYZMaterials];
+    log(`${playerText} XYZ Summoned <span style="color:var(--gold-light)">${state.selectedCard.name}</span> with ${state.pendingXYZMaterials.length} material(s) attached!`);
+  }
+  
+  state.units.push(newUnit);
+  
+  // Remove from hand or extra deck
+  if (isSpecialSummon) {
+    // Special summon - already removed from extra deck in confirmSpecialSummon
+    // Just clear the pending materials
+    state.pendingXYZMaterials = null;
+    state.pendingSpecialSummonType = null;
+  } else {
+    // Normal summon - remove from hand
+    currentHand.splice(currentHand.indexOf(state.selectedCard), 1);
+  }
+  
+  state.hasSummoned[playerKey] = true; // Mark as summoned
+  const faceText = faceUp ? 'face-up' : 'face-down';
+  if (!isXYZSummon) {
+    log(`${playerText} summoned <span style="color:var(--gold-light)">${state.selectedCard.name}</span> in ${position} (${faceText})`);
+  }
+  
+  // Send action to server/peer in network multiplayer mode
+  if (isNetworkMultiplayer() && multiplayerClient) {
+    multiplayerClient.sendAction({
+      type: 'summon',
+      card: {
+        id: state.selectedCard.id,
+        name: state.selectedCard.name,
+        atk: state.selectedCard.atk,
+        def: state.selectedCard.def,
+        level: state.selectedCard.level,
+        attribute: state.selectedCard.attr,
+        race: state.selectedCard.race,
+        type: state.selectedCard.type,
+        desc: state.selectedCard.desc
+      },
+      owner: unitOwner,
+      x: x,
+      y: y,
+      position: position,
+      faceUp: faceUp,
+      unitId: newUnit.uid,
+      xyzMaterials: isXYZSummon ? state.pendingXYZMaterials : null // Include XYZ materials
+    });
+  }
+  
+  state.selectedCard = null;
+  state.pendingSummon = null;
+  
+  // Update turn indicator
+  if (isNetworkMultiplayer()) {
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    const turnText = (state.activePlayer === mySide) 
+      ? `${isPlayer1 ? 'Player 1' : 'Player 2'}'s Turn` 
+      : `${isPlayer1 ? 'Player 2' : 'Player 1'}'s Turn`;
+    document.getElementById('turnIndicator').innerText = turnText;
+  } else if (multiplayerMode === 'local') {
+    document.getElementById('turnIndicator').innerText = state.activePlayer === PLAYER_SIDE ? "Player 1's Turn" : "Player 2's Turn";
+  } else {
+    document.getElementById('turnIndicator').innerText = state.activePlayer === PLAYER_SIDE ? 'Your Turn' : "Enemy's Turn";
+  }
+  
+  closeSummonMenu();
+  renderHand();
+  render();
+}
+
+// Get all link zones on the board (from all link monsters)
+function getAllLinkZones(owner) {
+  const linkZones = new Set();
+  const linkMonsters = state.units.filter(u => u.owner === owner && u.isLinkMonster());
+  
+  linkMonsters.forEach(linkMonster => {
+    const zones = linkMonster.getLinkZones();
+    zones.forEach(zone => {
+      // Check if zone is valid and not occupied
+      if (zone.x >= 0 && zone.x < COLS && zone.y >= 0 && zone.y < ROWS) {
+        const terrain = state.terrainMap[zone.y][zone.x];
+        if (!TERRAIN[terrain]?.impassable && !state.units.some(u => u.x === zone.x && u.y === zone.y)) {
+          linkZones.add(`${zone.x},${zone.y}`);
+        }
+      }
+    });
+  });
+  
+  return Array.from(linkZones).map(coord => {
+    const [x, y] = coord.split(',').map(Number);
+    return { x, y };
+  });
+}
+
+// Get valid summoning areas around a Deck Leader (8 adjacent squares)
+// For extra deck monsters, also includes link zones
+function getSummoningAreas(owner, isExtraDeckMonster = false) {
+  const areas = [];
+  
+  // If it's an extra deck monster, check for link zones first
+  if (isExtraDeckMonster) {
+    const linkZones = getAllLinkZones(owner);
+    if (linkZones.length > 0) {
+      // Use link zones for extra deck monsters
+      return linkZones;
+    }
+    // If no link zones, fall through to deck leader adjacent areas
+  }
+  
+  // Default: summon adjacent to deck leader
+  const leader = state.units.find(u => u.owner === owner && u.isDeckLeader);
+  if (!leader) return [];
+  
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = leader.x + dx, ny = leader.y + dy;
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+        const terrain = state.terrainMap[ny][nx];
+        // Can't summon on LABYRINTH
+        if (TERRAIN[terrain]?.impassable) continue;
+        // Can't summon on occupied tile
+        if (state.units.some(u => u.x === nx && u.y === ny)) continue;
+        areas.push({ x: nx, y: ny });
+      }
+    }
+  }
+  return areas;
+}
+
+// Check if a Deck Leader is in checkmate (all 8 squares blocked)
+function isInCheckmate(owner) {
+  const leader = state.units.find(u => u.owner === owner && u.isDeckLeader);
+  if (!leader) return false;
+  
+  // Check all 8 adjacent squares
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = leader.x + dx, ny = leader.y + dy;
+      
+      // Off board counts as blocked
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      
+      const terrain = state.terrainMap[ny][nx];
+      // LABYRINTH blocks
+      if (TERRAIN[terrain]?.impassable) continue;
+      
+      // Occupied by enemy unit blocks movement AND summoning
+      const occupant = state.units.find(u => u.x === nx && u.y === ny);
+      if (occupant && occupant.owner !== owner) continue;
+      
+      // Found at least one free/friendly square - not checkmate
+      return false;
+    }
+  }
+  
+  // All squares blocked - checkmate!
+  return true;
+}
+
+// Check checkmate at start of turn
+function checkForCheckmate() {
+  // Determine which side we are
+  const mySide = (multiplayerMode === 'online' || multiplayerMode === 'p2p')
+    ? (isPlayer1 ? PLAYER_SIDE : -1)
+    : PLAYER_SIDE;
+  const enemySide = (multiplayerMode === 'online' || multiplayerMode === 'p2p')
+    ? (isPlayer1 ? -1 : PLAYER_SIDE)
+    : -1;
+  
+  if (isInCheckmate(mySide)) {
+    log('<span style="color:var(--crimson);font-size:14px">CHECKMATE! Your Deck Leader is surrounded!</span>');
+    // Update correct LP based on which player we are
+    if (multiplayerMode === 'online' || multiplayerMode === 'p2p') {
+      if (isPlayer1) {
+        state.deckLeaders.player.lp = 0;
+      } else {
+        state.deckLeaders.enemy.lp = 0;
+      }
+    } else {
+      state.deckLeaders.player.lp = 0;
+    }
+    state.gameOver = true;
+    document.getElementById('turnIndicator').innerText = 'DEFEAT - Checkmate!';
+    updateLPDisplay();
+    showGameOverScreen(false, 'Checkmate - Your Deck Leader is surrounded!');
+    return true;
+  }
+  if (isInCheckmate(enemySide)) {
+    log('<span style="color:var(--gold-light);font-size:14px">CHECKMATE! Enemy Deck Leader is surrounded!</span>');
+    // Update correct LP based on which player we are
+    if (multiplayerMode === 'online' || multiplayerMode === 'p2p') {
+      if (isPlayer1) {
+        state.deckLeaders.enemy.lp = 0;
+      } else {
+        state.deckLeaders.player.lp = 0;
+      }
+    } else {
+      state.deckLeaders.enemy.lp = 0;
+    }
+    state.gameOver = true;
+    document.getElementById('turnIndicator').innerText = 'VICTORY - Checkmate!';
+    updateLPDisplay();
+    showGameOverScreen(true, 'Checkmate - Enemy Deck Leader is surrounded!');
+    return true;
+  }
+  return false;
+}
+
+// Show win/lose screen
+// Show campaign dialogue
+function showCampaignDialogue(characterName, avatar, text) {
+  const dialogue = document.createElement('div');
+  dialogue.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+  `;
+  
+  dialogue.innerHTML = `
+    <div style="background: var(--bg-card); border: 2px solid var(--gold); border-radius: 12px; padding: 30px; max-width: 600px; text-align: center;">
+      <div style="font-size: 64px; margin-bottom: 20px;">${avatar}</div>
+      <h2 style="color: var(--gold-light); margin: 0 0 20px 0; font-size: 28px;">${characterName}</h2>
+      <p style="color: var(--text); font-size: 18px; line-height: 1.6; margin-bottom: 30px;">${text}</p>
+      <button class="btn" onclick="this.parentElement.parentElement.remove()" style="padding: 12px 30px; font-size: 16px;">Continue</button>
+    </div>
+  `;
+  
+  document.body.appendChild(dialogue);
+}
+
+function showGameOverScreen(victory, reason = '') {
+  const screen = document.getElementById('gameOverScreen');
+  const title = document.getElementById('gameOverTitle');
+  const message = document.getElementById('gameOverMessage');
+  const stats = document.getElementById('gameOverStats');
+  
+  // Check if campaign mode
+  const isCampaign = multiplayerMode === 'campaign';
+  const campaignDuelData = isCampaign ? JSON.parse(localStorage.getItem('dotr_campaign_duel') || '{}') : null;
+  
+  if (victory) {
+    title.textContent = 'VICTORY!';
+    title.className = 'game-over-title victory';
+    
+    // Campaign victory message
+    if (isCampaign && campaignDuelData && campaignDuelData.opponent) {
+      const opponent = campaignDuelData.opponent;
+      message.innerHTML = `
+        <div style="color:var(--gold);font-size:20px;margin-bottom:10px;">🏆 You Win! 🏆</div>
+        <div style="margin:15px 0;padding:15px;background:rgba(201,162,39,0.1);border-radius:8px;">
+          <div style="font-size:32px;margin-bottom:10px;">${opponent.avatar}</div>
+          <div style="color:var(--gold-light);font-weight:bold;margin-bottom:8px;">${opponent.name}:</div>
+          <div style="color:var(--text);font-style:italic;">"${opponent.dialogue ? opponent.dialogue.win : 'You have defeated me!'}"</div>
+        </div>
+        ${reason || 'You have defeated your opponent!'}
+      `;
+      
+      // Update campaign progress
+      setTimeout(() => {
+        if (window.campaignManager && campaignDuelData.id) {
+          window.campaignManager.completeDuel(campaignDuelData.id, true);
+          console.log('[showGameOverScreen] Campaign duel completed:', campaignDuelData.id);
+        }
+      }, 100);
+    } else {
+      message.innerHTML = `<div style="color:var(--gold);font-size:20px;margin-bottom:10px;">🏆 You Win! 🏆</div>${reason || 'You have defeated your opponent!'}`;
+    }
+  } else {
+    title.textContent = 'DEFEAT';
+    title.className = 'game-over-title defeat';
+    
+    // Campaign defeat message
+    if (isCampaign && campaignDuelData && campaignDuelData.opponent) {
+      const opponent = campaignDuelData.opponent;
+      message.innerHTML = `
+        <div style="color:var(--crimson);font-size:20px;margin-bottom:10px;">💀 You Lose 💀</div>
+        <div style="margin:15px 0;padding:15px;background:rgba(139,26,26,0.1);border-radius:8px;">
+          <div style="font-size:32px;margin-bottom:10px;">${opponent.avatar}</div>
+          <div style="color:var(--gold-light);font-weight:bold;margin-bottom:8px;">${opponent.name}:</div>
+          <div style="color:var(--text);font-style:italic;">"${opponent.dialogue ? opponent.dialogue.lose : 'You were no match for me!'}"</div>
+        </div>
+        ${reason || 'Your Deck Leader has been defeated!'}
+      `;
+      
+      // Update campaign progress
+      setTimeout(() => {
+        if (window.campaignManager && campaignDuelData.id) {
+          window.campaignManager.completeDuel(campaignDuelData.id, false);
+          console.log('[showGameOverScreen] Campaign duel lost:', campaignDuelData.id);
+        }
+      }, 100);
+    } else {
+      message.innerHTML = `<div style="color:var(--crimson);font-size:20px;margin-bottom:10px;">💀 You Lose 💀</div>${reason || 'Your Deck Leader has been defeated!'}`;
+    }
+  }
+  
+  // Calculate stats - determine which units belong to us
+  const mySide = (multiplayerMode === 'online' || multiplayerMode === 'p2p')
+    ? (isPlayer1 ? PLAYER_SIDE : -1)
+    : PLAYER_SIDE;
+  const enemySide = (multiplayerMode === 'online' || multiplayerMode === 'p2p')
+    ? (isPlayer1 ? -1 : PLAYER_SIDE)
+    : -1;
+  
+  const playerUnits = state.units.filter(u => u.owner === mySide && !u.isDeckLeader);
+  const enemyUnits = state.units.filter(u => u.owner === enemySide && !u.isDeckLeader);
+  const playerLeader = state.units.find(u => u.owner === mySide && u.isDeckLeader);
+  const enemyLeader = state.units.find(u => u.owner === enemySide && u.isDeckLeader);
+  
+  stats.innerHTML = `
+    <div style="color:var(--gold);font-weight:bold;margin-bottom:12px;text-align:center;">Battle Statistics</div>
+    <div>
+      <span class="stat-label">Your LP:</span>
+      <span class="stat-value">${state.deckLeaders.player.lp} / ${MAX_LP}</span>
+    </div>
+    <div>
+      <span class="stat-label">Enemy LP:</span>
+      <span class="stat-value">${state.deckLeaders.enemy.lp} / ${MAX_LP}</span>
+    </div>
+    <div>
+      <span class="stat-label">Your Units Remaining:</span>
+      <span class="stat-value">${playerUnits.length}</span>
+    </div>
+    <div>
+      <span class="stat-label">Enemy Units Remaining:</span>
+      <span class="stat-value">${enemyUnits.length}</span>
+    </div>
+    <div>
+      <span class="stat-label">Your Deck Leader:</span>
+      <span class="stat-value">${playerLeader ? playerLeader.card.name : 'N/A'}</span>
+    </div>
+    <div>
+      <span class="stat-label">Enemy Deck Leader:</span>
+      <span class="stat-value">${enemyLeader ? enemyLeader.card.name : 'N/A'}</span>
+    </div>
+    <div>
+      <span class="stat-label">Cards in Hand:</span>
+      <span class="stat-value">${state.hand.length}</span>
+    </div>
+    <div>
+      <span class="stat-label">Cards in Deck:</span>
+      <span class="stat-value">${state.deck.length}</span>
+    </div>
+  `;
+  
+  // Update buttons for campaign mode
+  const buttons = screen.querySelector('.game-over-buttons');
+  if (isCampaign) {
+    buttons.innerHTML = `
+      <a href="campaign.html" class="btn">👑 Continue Campaign</a>
+      <button class="btn btn-secondary" onclick="restartGame()">🔄 Retry Duel</button>
+      <a href="index.html" class="btn btn-secondary">← Main Menu</a>
+    `;
+  } else {
+    buttons.innerHTML = `
+      <button class="btn" onclick="restartGame()">🔄 Play Again</button>
+      <a href="index.html" class="btn btn-secondary">← Main Menu</a>
+    `;
+  }
+  
+  screen.style.display = 'flex';
+}
+
+// Restart game
+function restartGame() {
+  location.reload();
+}
+
+// Update graveyard count display
+function updateGraveyardDisplay() {
+  if (isNetworkMultiplayer()) {
+    // For network multiplayer, show correct graveyard counts
+    const myGraveyard = isPlayer1 ? state.graveyard : state.enemyGraveyard;
+    const enemyGraveyard = isPlayer1 ? state.enemyGraveyard : state.graveyard;
+    document.getElementById('graveyardCount').innerText = myGraveyard.length;
+    document.getElementById('myGraveyardCount').innerText = myGraveyard.length;
+    document.getElementById('enemyGraveyardCount').innerText = enemyGraveyard.length;
+  } else {
+    // Single player or local multiplayer
+    document.getElementById('graveyardCount').innerText = state.graveyard.length;
+    document.getElementById('myGraveyardCount').innerText = state.graveyard.length;
+    document.getElementById('enemyGraveyardCount').innerText = state.enemyGraveyard.length;
+  }
+}
+
+// Show graveyard viewer
+let currentGraveyardView = 'my'; // 'my' or 'enemy'
+function showGraveyard(view = 'my') {
+  currentGraveyardView = view;
+  const screen = document.getElementById('graveyardScreen');
+  const content = document.getElementById('graveyardContent');
+  
+  // Determine which graveyard to show
+  let graveyard;
+  if (isNetworkMultiplayer()) {
+    graveyard = view === 'my' 
+      ? (isPlayer1 ? state.graveyard : state.enemyGraveyard)
+      : (isPlayer1 ? state.enemyGraveyard : state.graveyard);
+  } else {
+    graveyard = view === 'my' ? state.graveyard : state.enemyGraveyard;
+  }
+  
+  // Clear and populate graveyard content
+  content.innerHTML = '';
+  
+  if (graveyard.length === 0) {
+    content.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">Graveyard is empty</div>';
+  } else {
+    graveyard.forEach((card, index) => {
+      const cardDiv = document.createElement('div');
+      cardDiv.className = 'card';
+      cardDiv.style.cursor = 'pointer';
+      cardDiv.style.position = 'relative';
+      
+      // Load card image
+      const img = document.createElement('img');
+      img.src = `pics/${card.id}.jpg`;
+      img.alt = card.name;
+      img.style.width = '100%';
+      img.style.height = 'auto';
+      img.style.borderRadius = '4px';
+      img.onerror = () => {
+        img.src = `https://images.ygoprodeck.com/images/cards/${card.id}.jpg`;
+      };
+      
+      // Card name overlay
+      const nameOverlay = document.createElement('div');
+      nameOverlay.style.position = 'absolute';
+      nameOverlay.style.bottom = '0';
+      nameOverlay.style.left = '0';
+      nameOverlay.style.right = '0';
+      nameOverlay.style.background = 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)';
+      nameOverlay.style.padding = '4px';
+      nameOverlay.style.fontSize = '10px';
+      nameOverlay.style.color = 'white';
+      nameOverlay.textContent = card.name;
+      
+      cardDiv.appendChild(img);
+      cardDiv.appendChild(nameOverlay);
+      
+      // Show card preview on hover
+      cardDiv.onmouseenter = () => {
+        if (cardPreview) {
+          cardPreview.innerHTML = `
+            <div style="font-weight:bold; margin-bottom:8px;">${card.name}</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">ATK: ${card.atk} / DEF: ${card.def}</div>
+            ${card.desc ? `<div style="font-size:10px; line-height:1.4;">${card.desc}</div>` : ''}
+          `;
+        }
+      };
+      
+      content.appendChild(cardDiv);
+    });
+  }
+  
+  // Update button states
+  document.getElementById('viewMyGraveyard').style.opacity = view === 'my' ? '1' : '0.6';
+  document.getElementById('viewEnemyGraveyard').style.opacity = view === 'enemy' ? '1' : '0.6';
+  
+  screen.style.display = 'flex';
+  updateGraveyardDisplay();
+}
+
+function closeGraveyard() {
+  document.getElementById('graveyardScreen').style.display = 'none';
+}
+
+/* ========== EXTRA DECK ========== */
+// Check if a card is an Extra Deck monster
+function isExtraDeckMonster(card) {
+  if (!card || !card.type) return false;
+  const type = card.type.toLowerCase();
+  return type.includes('fusion') || 
+         type.includes('synchro') || 
+         type.includes('xyz') || 
+         type.includes('xyz') ||
+         type.includes('link') ||
+         type.includes('pendulum');
+}
+
+// Get the summon type of an extra deck monster
+function getSummonType(card) {
+  if (!card || !card.type) return null;
+  const type = card.type.toLowerCase();
+  if (type.includes('fusion')) return 'Fusion';
+  if (type.includes('synchro')) return 'Synchro';
+  if (type.includes('xyz') || type.includes('xyz')) return 'XYZ';
+  if (type.includes('link')) return 'Link';
+  if (type.includes('pendulum')) return 'Pendulum';
+  return null;
+}
+
+// Update extra deck count display
+function updateExtraDeckDisplay() {
+  if (isNetworkMultiplayer()) {
+    // For network multiplayer, show correct extra deck counts
+    const myExtraDeck = isPlayer1 ? state.extraDeck : state.enemyExtraDeck;
+    const enemyExtraDeck = isPlayer1 ? state.enemyExtraDeck : state.extraDeck;
+    document.getElementById('extraDeckCount').innerText = myExtraDeck.length;
+    document.getElementById('myExtraDeckCount').innerText = myExtraDeck.length;
+    document.getElementById('enemyExtraDeckCount').innerText = enemyExtraDeck.length;
+  } else {
+    // Single player or local multiplayer
+    document.getElementById('extraDeckCount').innerText = state.extraDeck.length;
+    document.getElementById('myExtraDeckCount').innerText = state.extraDeck.length;
+    document.getElementById('enemyExtraDeckCount').innerText = state.enemyExtraDeck.length;
+  }
+}
+
+// Show extra deck viewer
+let currentExtraDeckView = 'my'; // 'my' or 'enemy'
+function showExtraDeck(view = 'my') {
+  currentExtraDeckView = view;
+  const screen = document.getElementById('extraDeckScreen');
+  const content = document.getElementById('extraDeckContent');
+  
+  // Determine which extra deck to show
+  let extraDeck;
+  if (isNetworkMultiplayer()) {
+    extraDeck = view === 'my' 
+      ? (isPlayer1 ? state.extraDeck : state.enemyExtraDeck)
+      : (isPlayer1 ? state.enemyExtraDeck : state.extraDeck);
+  } else {
+    extraDeck = view === 'my' ? state.extraDeck : state.enemyExtraDeck;
+  }
+  
+  // Clear and populate extra deck content
+  content.innerHTML = '';
+  
+  if (extraDeck.length === 0) {
+    content.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">Extra Deck is empty</div>';
+  } else {
+    // Group by summon type
+    const grouped = {
+      Fusion: [],
+      Synchro: [],
+      XYZ: [],
+      Link: [],
+      Pendulum: [],
+      Other: []
+    };
+    
+    extraDeck.forEach(card => {
+      const summonType = getSummonType(card) || 'Other';
+      if (grouped[summonType]) {
+        grouped[summonType].push(card);
+      } else {
+        grouped.Other.push(card);
+      }
+    });
+    
+    // Display by type
+    Object.keys(grouped).forEach(summonType => {
+      if (grouped[summonType].length === 0) return;
+      
+      // Type header
+      const header = document.createElement('div');
+      header.style.gridColumn = '1/-1';
+      header.style.fontWeight = 'bold';
+      header.style.color = 'var(--gold-light)';
+      header.style.marginTop = '10px';
+      header.style.marginBottom = '5px';
+      header.textContent = `${summonType} (${grouped[summonType].length})`;
+      content.appendChild(header);
+      
+      // Cards of this type
+      grouped[summonType].forEach((card, index) => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+        cardDiv.style.cursor = 'pointer';
+        cardDiv.style.position = 'relative';
+        
+        // Load card image
+        const img = document.createElement('img');
+        img.src = `pics/${card.id}.jpg`;
+        img.alt = card.name;
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.borderRadius = '4px';
+        img.onerror = () => {
+          img.src = `https://images.ygoprodeck.com/images/cards/${card.id}.jpg`;
+        };
+        
+        // Card name overlay
+        const nameOverlay = document.createElement('div');
+        nameOverlay.style.position = 'absolute';
+        nameOverlay.style.bottom = '0';
+        nameOverlay.style.left = '0';
+        nameOverlay.style.right = '0';
+        nameOverlay.style.background = 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)';
+        nameOverlay.style.padding = '4px';
+        nameOverlay.style.fontSize = '10px';
+        nameOverlay.style.color = 'white';
+        nameOverlay.textContent = card.name;
+        
+        // Summon type badge
+        const typeBadge = document.createElement('div');
+        typeBadge.style.position = 'absolute';
+        typeBadge.style.top = '4px';
+        typeBadge.style.right = '4px';
+        typeBadge.style.background = 'rgba(0,0,0,0.7)';
+        typeBadge.style.padding = '2px 6px';
+        typeBadge.style.borderRadius = '4px';
+        typeBadge.style.fontSize = '9px';
+        typeBadge.style.color = 'var(--gold-light)';
+        typeBadge.textContent = getSummonType(card) || 'Extra';
+        
+        cardDiv.appendChild(img);
+        cardDiv.appendChild(nameOverlay);
+        cardDiv.appendChild(typeBadge);
+        
+        // Show card preview on hover
+        cardDiv.onmouseenter = () => {
+          if (cardPreview) {
+            const summonType = getSummonType(card);
+            cardPreview.innerHTML = `
+              <div style="font-weight:bold; margin-bottom:8px;">${card.name}</div>
+              <div style="font-size:10px; color:var(--gold-light); margin-bottom:4px;">${summonType || 'Extra Deck'} Monster</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">ATK: ${card.atk} / DEF: ${card.def}</div>
+              ${card.level ? `<div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">Level: ${card.level}</div>` : ''}
+              ${card.desc ? `<div style="font-size:10px; line-height:1.4;">${card.desc}</div>` : ''}
+            `;
+          }
+        };
+        
+        // Click to summon (if it's your turn and you have materials)
+        if (view === 'my') {
+          cardDiv.onclick = () => {
+            closeExtraDeck();
+            attemptSpecialSummon(card);
+          };
+        }
+        
+        content.appendChild(cardDiv);
+      });
+    });
+  }
+  
+  // Update button states
+  document.getElementById('viewMyExtraDeck').style.opacity = view === 'my' ? '1' : '0.6';
+  document.getElementById('viewEnemyExtraDeck').style.opacity = view === 'enemy' ? '1' : '0.6';
+  
+  screen.style.display = 'flex';
+  updateExtraDeckDisplay();
+}
+
+function closeExtraDeck() {
+  document.getElementById('extraDeckScreen').style.display = 'none';
+}
+
+// Attempt to special summon an extra deck monster
+function attemptSpecialSummon(card) {
+  if (state.gameOver) return;
+  
+  // Check if it's our turn
+  let isMyTurn = false;
+  if (isNetworkMultiplayer()) {
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    isMyTurn = (state.activePlayer === mySide);
+  } else {
+    isMyTurn = (state.activePlayer === PLAYER_SIDE);
+  }
+  
+  if (!isMyTurn) {
+    log('Not your turn!');
+    return;
+  }
+  
+  // Check if we've already summoned this turn
+  const mySide = isNetworkMultiplayer() ? (isPlayer1 ? PLAYER_SIDE : -1) : PLAYER_SIDE;
+  const playerKey = mySide === PLAYER_SIDE ? 'player' : 'enemy';
+  if (state.hasSummoned[playerKey]) {
+    log('You have already summoned this turn!');
+    return;
+  }
+  
+  // Check if card is in extra deck
+  const extraDeck = isNetworkMultiplayer() 
+    ? (isPlayer1 ? state.extraDeck : state.enemyExtraDeck)
+    : state.extraDeck;
+  
+  if (!extraDeck.find(c => c.id === card.id)) {
+    log('Card not in your Extra Deck!');
+    return;
+  }
+  
+  const summonType = getSummonType(card);
+  if (!summonType) {
+    log('Invalid extra deck monster type!');
+    return;
+  }
+  
+  // Get available materials on field
+  const myUnits = state.units.filter(u => u.owner === mySide && !u.isDeckLeader);
+  
+  if (myUnits.length === 0) {
+    log('No monsters on the field to use as materials!');
+    return;
+  }
+  
+  // Show material selection based on summon type
+  showMaterialSelection(card, summonType, myUnits);
+}
+
+// Show material selection menu for special summoning
+let pendingSpecialSummon = null; // {card, summonType, materials: []}
+function showMaterialSelection(card, summonType, availableUnits) {
+  pendingSpecialSummon = {
+    card: card,
+    summonType: summonType,
+    materials: [],
+    availableUnits: availableUnits
+  };
+  
+  // Create material selection UI
+  const menu = document.getElementById('summonMenu');
+  const content = document.createElement('div');
+  content.style.padding = '20px';
+  content.style.textAlign = 'center';
+  
+  content.innerHTML = `
+    <div style="font-weight:bold; margin-bottom:15px; font-size:16px;">Special Summon: ${card.name}</div>
+    <div style="color:var(--gold-light); margin-bottom:15px;">${summonType} Summon</div>
+    <div style="margin-bottom:15px; font-size:12px; color:var(--text-muted);">
+      ${getSummonRequirements(summonType)}
+    </div>
+    <div id="selectedMaterials" style="margin-bottom:15px; min-height:40px; padding:10px; background:rgba(0,0,0,0.3); border-radius:4px;">
+      <div style="color:var(--text-muted);">Selected Materials: <span id="materialCount">0</span></div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:8px; margin-bottom:15px; max-height:200px; overflow-y:auto;">
+      ${availableUnits.map((unit, idx) => `
+        <div class="card" style="cursor:pointer; position:relative; ${pendingSpecialSummon.materials.find(m => m.uid === unit.uid) ? 'opacity:0.5; border:2px solid var(--gold);' : ''}" 
+             onclick="toggleMaterial(${idx})">
+          <img src="pics/${unit.card.id}.jpg" style="width:100%; height:auto; border-radius:4px;" 
+               onerror="this.src='https://images.ygoprodeck.com/images/cards/${unit.card.id}.jpg'">
+          <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding:2px; font-size:9px; color:white;">
+            ${unit.card.name}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:flex; gap:10px; justify-content:center;">
+      <button class="btn" onclick="confirmSpecialSummon()" id="confirmSummonBtn" disabled>Summon</button>
+      <button class="btn btn-secondary" onclick="cancelSpecialSummon()">Cancel</button>
+    </div>
+  `;
+  
+  menu.innerHTML = '';
+  menu.appendChild(content);
+  menu.style.display = 'flex';
+  
+  updateMaterialSelection();
+}
+
+// Get summon requirements text
+function getSummonRequirements(summonType) {
+  switch(summonType) {
+    case 'Fusion':
+      return 'Select 2+ monsters on the field as Fusion Materials';
+    case 'Synchro':
+      return 'Select 1 Tuner + 1+ non-Tuner monsters (total levels must equal Synchro level)';
+    case 'XYZ':
+      return 'Select 2+ monsters of the same level as XYZ Materials';
+    case 'Link':
+      return 'Select monsters equal to Link Rating as Link Materials';
+    default:
+      return 'Select materials for special summon';
+  }
+}
+
+// Toggle material selection
+function toggleMaterial(unitIndex) {
+  if (!pendingSpecialSummon) return;
+  
+  const unit = pendingSpecialSummon.availableUnits[unitIndex];
+  if (!unit) return;
+  
+  const index = pendingSpecialSummon.materials.findIndex(m => m.uid === unit.uid);
+  if (index >= 0) {
+    pendingSpecialSummon.materials.splice(index, 1);
+  } else {
+    pendingSpecialSummon.materials.push(unit);
+  }
+  
+  updateMaterialSelection();
+}
+
+// Update material selection UI
+function updateMaterialSelection() {
+  if (!pendingSpecialSummon) return;
+  
+  const countEl = document.getElementById('materialCount');
+  const selectedEl = document.getElementById('selectedMaterials');
+  const confirmBtn = document.getElementById('confirmSummonBtn');
+  
+  if (countEl) countEl.textContent = pendingSpecialSummon.materials.length;
+  
+  // Show selected materials
+  if (selectedEl) {
+    if (pendingSpecialSummon.materials.length === 0) {
+      selectedEl.innerHTML = '<div style="color:var(--text-muted);">Selected Materials: 0</div>';
+    } else {
+      selectedEl.innerHTML = `
+        <div style="color:var(--text-muted); margin-bottom:5px;">Selected Materials:</div>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+          ${pendingSpecialSummon.materials.map(m => `
+            <span style="background:rgba(201,162,39,0.3); padding:2px 6px; border-radius:4px; font-size:10px;">
+              ${m.card.name}
+            </span>
+          `).join('')}
+        </div>
+      `;
+    }
+  }
+  
+  // Check if requirements are met
+  const valid = checkSummonRequirements(pendingSpecialSummon.card, pendingSpecialSummon.summonType, pendingSpecialSummon.materials);
+  if (confirmBtn) {
+    confirmBtn.disabled = !valid;
+    if (!valid && pendingSpecialSummon.materials.length > 0) {
+      confirmBtn.title = getRequirementError(pendingSpecialSummon.card, pendingSpecialSummon.summonType, pendingSpecialSummon.materials);
+    }
+  }
+  
+  // Re-render material selection to show selected state
+  if (pendingSpecialSummon) {
+    showMaterialSelection(pendingSpecialSummon.card, pendingSpecialSummon.summonType, pendingSpecialSummon.availableUnits);
+  }
+}
+
+// Parse fusion requirements from card description
+function parseFusionRequirements(card) {
+  if (!card || !card.desc) return null;
+  
+  const desc = card.desc.toLowerCase();
+  
+  // Try to find fusion material patterns
+  // Pattern 1: "1 'Card Name' + 1 Type monster"
+  // Pattern 2: "2+ monsters"
+  // Pattern 3: "1 'Card Name' + 1+ monsters"
+  
+  const requirements = [];
+  
+  // Look for specific card names in quotes
+  const quotedNames = card.desc.match(/'([^']+)'/g);
+  if (quotedNames) {
+    quotedNames.forEach(quoted => {
+      const name = quoted.replace(/'/g, '').trim();
+      requirements.push({ type: 'specific', name: name });
+    });
+  }
+  
+  // Look for monster types/attributes/races
+  const typePatterns = [
+    { pattern: /(\d+)\+?\s*(light|dark|fire|water|earth|wind)\s+monster/i, attr: true },
+    { pattern: /(\d+)\+?\s*(dragon|spellcaster|warrior|beast|fiend|fairy|insect|machine|plant|reptile|rock|sea serpent|thunder|winged beast|zombie|aqua|beast-warrior|dinosaur|fish|psychic|pyro|wyrm)\s+monster/i, race: true },
+    { pattern: /(\d+)\+?\s*monster/i, generic: true }
+  ];
+  
+  typePatterns.forEach(({ pattern, attr, race, generic }) => {
+    const match = card.desc.match(pattern);
+    if (match) {
+      const count = parseInt(match[1]) || 1;
+      for (let i = 0; i < count; i++) {
+        if (attr) {
+          requirements.push({ type: 'attribute', value: match[2].toUpperCase() });
+        } else if (race) {
+          requirements.push({ type: 'race', value: match[2] });
+        } else if (generic) {
+          requirements.push({ type: 'generic' });
+        }
+      }
+    }
+  });
+  
+  return requirements.length > 0 ? requirements : null;
+}
+
+// Check if summon requirements are met
+function checkSummonRequirements(card, summonType, materials) {
+  if (materials.length === 0) return false;
+  
+  switch(summonType) {
+    case 'Fusion':
+      // Try to parse specific fusion requirements
+      const fusionReqs = parseFusionRequirements(card);
+      if (fusionReqs) {
+        // Check specific requirements
+        let reqIndex = 0;
+        const usedMaterials = new Set();
+        
+        for (const req of fusionReqs) {
+          let found = false;
+          
+          for (let i = 0; i < materials.length; i++) {
+            if (usedMaterials.has(i)) continue;
+            
+            const material = materials[i];
+            
+            if (req.type === 'specific') {
+              // Check if material name matches (case-insensitive, partial match)
+              if (material.card.name.toLowerCase().includes(req.name.toLowerCase())) {
+                found = true;
+                usedMaterials.add(i);
+                break;
+              }
+            } else if (req.type === 'attribute') {
+              if (material.card.attr === req.value) {
+                found = true;
+                usedMaterials.add(i);
+                break;
+              }
+            } else if (req.type === 'race') {
+              if (material.card.race && material.card.race.toLowerCase().includes(req.value.toLowerCase())) {
+                found = true;
+                usedMaterials.add(i);
+                break;
+              }
+            } else if (req.type === 'generic') {
+              found = true;
+              usedMaterials.add(i);
+              break;
+            }
+          }
+          
+          if (!found) {
+            return false; // Requirement not met
+          }
+        }
+        
+        // All requirements met
+        return true;
+      }
+      
+      // Fallback: generic fusion (2+ monsters)
+      return materials.length >= 2;
+      
+    case 'Synchro':
+      // Need 1 Tuner + 1+ non-Tuner, total levels = Synchro level
+      const tuners = materials.filter(m => m.card.race && m.card.race.toLowerCase().includes('tuner'));
+      const nonTuners = materials.filter(m => !m.card.race || !m.card.race.toLowerCase().includes('tuner'));
+      if (tuners.length < 1 || nonTuners.length < 1) return false;
+      const totalLevel = materials.reduce((sum, m) => sum + (m.card.level || 0), 0);
+      return totalLevel === card.level;
+      
+    case 'XYZ':
+      // Need 2+ monsters of the same level
+      if (materials.length < 2) return false;
+      const firstLevel = materials[0].card.level;
+      return materials.every(m => m.card.level === firstLevel);
+      
+    case 'Link':
+      // Need monsters equal to Link Rating (stored in level for Link monsters)
+      return materials.length === (card.level || card.linkval || 1);
+      
+    default:
+      return materials.length >= 1;
+  }
+}
+
+// Get requirement error message
+function getRequirementError(card, summonType, materials) {
+  switch(summonType) {
+    case 'Fusion':
+      // Check for specific fusion requirements
+      const fusionReqs = parseFusionRequirements(card);
+      if (fusionReqs) {
+        // Check which requirement is missing
+        const usedMaterials = new Set();
+        for (let reqIndex = 0; reqIndex < fusionReqs.length; reqIndex++) {
+          const req = fusionReqs[reqIndex];
+          let found = false;
+          
+          for (let i = 0; i < materials.length; i++) {
+            if (usedMaterials.has(i)) continue;
+            const material = materials[i];
+            
+            if (req.type === 'specific') {
+              if (material.card.name.toLowerCase().includes(req.name.toLowerCase())) {
+                found = true;
+                usedMaterials.add(i);
+                break;
+              }
+            } else if (req.type === 'attribute') {
+              if (material.card.attr === req.value) {
+                found = true;
+                usedMaterials.add(i);
+                break;
+              }
+            } else if (req.type === 'race') {
+              if (material.card.race && material.card.race.toLowerCase().includes(req.value.toLowerCase())) {
+                found = true;
+                usedMaterials.add(i);
+                break;
+              }
+            } else if (req.type === 'generic') {
+              found = true;
+              usedMaterials.add(i);
+              break;
+            }
+          }
+          
+          if (!found) {
+            // Return specific error message
+            if (req.type === 'specific') {
+              return `Need "${req.name}" as material`;
+            } else if (req.type === 'attribute') {
+              return `Need ${req.value} attribute monster as material`;
+            } else if (req.type === 'race') {
+              return `Need ${req.value} monster as material`;
+            } else {
+              return 'Need more materials';
+            }
+          }
+        }
+        return 'Requirements not met';
+      }
+      return 'Need at least 2 materials';
+    case 'Synchro':
+      const tuners = materials.filter(m => m.card.race && m.card.race.toLowerCase().includes('tuner'));
+      const nonTuners = materials.filter(m => !m.card.race || !m.card.race.toLowerCase().includes('tuner'));
+      const totalLevel = materials.reduce((sum, m) => sum + (m.card.level || 0), 0);
+      if (tuners.length < 1) return 'Need at least 1 Tuner monster';
+      if (nonTuners.length < 1) return 'Need at least 1 non-Tuner monster';
+      if (totalLevel !== card.level) return `Total levels must equal ${card.level} (current: ${totalLevel})`;
+      return 'Requirements not met';
+    case 'XYZ':
+      if (materials.length < 2) return 'Need at least 2 materials';
+      const firstLevel = materials[0].card.level;
+      if (!materials.every(m => m.card.level === firstLevel)) return 'All materials must be the same level';
+      return 'Requirements not met';
+    case 'Link':
+      const linkRating = card.level || card.linkval || 1;
+      if (materials.length !== linkRating) return `Need exactly ${linkRating} materials`;
+      return 'Requirements not met';
+    default:
+      return 'Requirements not met';
+  }
+}
+
+// Confirm special summon
+function confirmSpecialSummon() {
+  if (!pendingSpecialSummon) return;
+  
+  const { card, summonType, materials } = pendingSpecialSummon;
+  
+  if (!checkSummonRequirements(card, summonType, materials)) {
+    log('Summon requirements not met!');
+    return;
+  }
+  
+  // Store material info before removal (for multiplayer)
+  const materialIds = materials.map(m => m.uid);
+  const materialCards = materials.map(m => ({ card: m.card, owner: m.owner }));
+  
+  // Handle materials based on summon type
+  let xyzMaterials = [];
+  if (summonType === 'XYZ') {
+    // XYZ: Materials become overlays (attached to the XYZ monster)
+    // Store material cards for attachment
+    xyzMaterials = materials.map(m => m.card);
+    // Remove materials from field (but don't send to graveyard - they become overlays)
+    materials.forEach(material => {
+      const index = state.units.findIndex(u => u.uid === material.uid);
+      if (index >= 0) {
+        state.units.splice(index, 1);
+      }
+    });
+  } else {
+    // Fusion, Synchro, Link: Materials go to graveyard
+    materials.forEach(material => {
+      const index = state.units.findIndex(u => u.uid === material.uid);
+      if (index >= 0) {
+        sendToGraveyard(material.card, material.owner);
+        state.units.splice(index, 1);
+      }
+    });
+  }
+  
+  // Remove card from extra deck
+  const mySide = isNetworkMultiplayer() ? (isPlayer1 ? PLAYER_SIDE : -1) : PLAYER_SIDE;
+  const extraDeck = isNetworkMultiplayer() 
+    ? (isPlayer1 ? state.extraDeck : state.enemyExtraDeck)
+    : state.extraDeck;
+  const cardIndex = extraDeck.findIndex(c => c.id === card.id);
+  if (cardIndex >= 0) {
+    extraDeck.splice(cardIndex, 1);
+  }
+  
+  // Store XYZ materials for attachment when unit is created
+  state.pendingXYZMaterials = xyzMaterials.length > 0 ? xyzMaterials : null;
+  state.pendingSpecialSummonType = summonType;
+  
+  // Send special summon action to multiplayer
+  if (isNetworkMultiplayer() && multiplayerClient) {
+    multiplayerClient.sendAction({
+      type: 'specialSummon',
+      card: card,
+      summonType: summonType,
+      materialIds: materialIds,
+      materialCards: materialCards,
+      xyzMaterials: xyzMaterials // Include XYZ materials for multiplayer sync
+    });
+  }
+  
+  // Get summon location (adjacent to deck leader or link zone)
+  const playerKey = mySide === PLAYER_SIDE ? 'player' : 'enemy';
+  state.hasSummoned[playerKey] = true;
+  
+  // Show summon menu for position
+  state.selectedCard = card;
+  state.pendingSummon = null; // Will be set when clicking summon area
+  closeSummonMenu();
+  const isExtraDeck = isExtraDeckMonster(card);
+  const linkZones = getAllLinkZones(mySide);
+  if (isExtraDeck && linkZones.length > 0) {
+    log(`<span style="color:var(--gold-light)">Select a Link Zone to summon ${card.name}</span>`);
+  } else {
+    log(`<span style="color:var(--gold-light)">Select a summon area adjacent to your Deck Leader to summon ${card.name}</span>`);
+  }
+  
+  // Clear pending special summon
+  pendingSpecialSummon = null;
+  updateExtraDeckDisplay();
+  render();
+}
+
+// Cancel special summon
+function cancelSpecialSummon() {
+  pendingSpecialSummon = null;
+  closeSummonMenu();
+}
+
+function drawCardToHand(player = null) {
+  // Determine which player is drawing (for local multiplayer)
+  const isPlayer2 = player === -1 || (multiplayerMode === 'local' && state.activePlayer === -1);
+  
+  if (isPlayer2 && multiplayerMode === 'local') {
+    // Player 2 draws from their deck
+    if (state.aiDeck.length === 0) { log('Player 2 deck empty!'); return null; }
+    const card = state.aiDeck.pop();
+    state.player2Hand.push(card);
+    renderHand();
+    document.getElementById('deckCount').innerText = state.aiDeck.length;
+    log(`Player 2 drew: <span style="color:var(--gold-light)">${card.name}</span>`);
+    return card;
+  } else {
+    // Player 1 draws from their deck
+    if (state.deck.length === 0) { log('Deck empty!'); return null; }
+    const card = state.deck.pop();
+    state.hand.push(card);
+    renderHand();
+    document.getElementById('deckCount').innerText = state.deck.length;
+    log(`Drew: <span style="color:var(--gold-light)">${card.name}</span>`);
+    return card;
+  }
+}
+
+function showCardPreview(card, unit = null, terrain = null) {
+  const preview = document.getElementById('cardPreview');
+  if (!card) {
+    preview.className = 'empty';
+    preview.innerHTML = 'Hover over a card';
+    return;
+  }
+  
+  preview.className = '';
+  let atkDisplay = card.atk, defDisplay = card.def;
+  let boostText = '', defBoostText = '', movDisplay = card.mov;
+  let terrainInfo = '', positionInfo = '', deckLeaderInfo = '';
+  
+  // Deck Leader special display
+  if (unit && unit.isDeckLeader) {
+    const owner = unit.owner === PLAYER_SIDE ? 'Your' : 'Enemy';
+    const lp = unit.owner === PLAYER_SIDE ? state.deckLeaders.player.lp : state.deckLeaders.enemy.lp;
+    deckLeaderInfo = `<div style="background:rgba(201,162,39,0.2);padding:4px;margin:4px 0;border-radius:3px;">
+      <div style="color:var(--gold);font-weight:bold;">★ DECK LEADER ★</div>
+      <div style="font-size:10px;">${owner} LP: ${lp} / ${MAX_LP}</div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px;">
+        • Can move 1 space/turn<br>
+        • Summon cards adjacent<br>
+        • Cannot attack
+      </div>
+    </div>`;
+  }
+  
+  if (unit && terrain && !unit.isDeckLeader) {
+    // Face-down cards hide their info
+    if (unit.isFaceDown()) {
+      preview.innerHTML = `
+        <div style="background:rgba(10,20,40,0.9);width:100%;height:180px;display:flex;align-items:center;justify-content:center;border-radius:4px;">
+          <div style="text-align:center;color:rgba(201,162,39,0.6);">
+            <div style="font-size:48px;margin-bottom:10px;">?</div>
+            <div style="font-size:12px;">Face-Down Card</div>
+            <div style="font-size:10px;margin-top:8px;color:var(--text-muted);">Click to flip face-up</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
+    const bonus = unit.getTerrainBonus(terrain);
+    atkDisplay = unit.getEffectiveAtk(terrain);
+    defDisplay = unit.getEffectiveDef(terrain);
+    movDisplay = unit.getEffectiveMov(terrain);
+    
+    if (bonus.atk > 0) {
+      boostText = ` <span style="color:#4ac77a">(+${bonus.atk})</span>`;
+      defBoostText = ` <span style="color:#4ac77a">(+${bonus.def})</span>`;
+    } else if (bonus.atk < 0) {
+      boostText = ` <span style="color:#c74a4a">(${bonus.atk})</span>`;
+      defBoostText = ` <span style="color:#c74a4a">(${bonus.def})</span>`;
+    }
+    
+    // Show position info
+    const posColor = unit.isInDefense() ? '#6af' : '#f96';
+    positionInfo = `<div style="font-size:10px;margin-top:4px;">
+      Position: <span style="color:${posColor};font-weight:bold;">${unit.position}</span>
+      ${unit.isInDefense() ? '(Moving switches to ATK)' : ''}
+    </div>`;
+    
+    const t = TERRAIN[terrain];
+    terrainInfo = `<div class="preview-terrain" style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+      On ${t.name}: ${t.effect}
+    </div>`;
+  }
+  
+  preview.innerHTML = `
+    <img id="previewImg" src="${card.getImgPath()}" onerror="this.src='${card.getApiImgPath()}'">
+    <div>
+      <div class="preview-name">${card.name}</div>
+      ${deckLeaderInfo}
+      <div class="preview-type">${card.race} / ${card.type}</div>
+      <div class="preview-attr attr-${card.attr}">${card.attr}</div>
+      <div class="preview-stats">ATK: ${atkDisplay}${boostText} / DEF: ${defDisplay}${defBoostText}</div>
+      <div class="preview-stats">★${card.level} | MOV: ${movDisplay}</div>
+      ${positionInfo}
+      ${terrainInfo}
+      <div class="preview-desc">${card.desc.slice(0, 100)}${card.desc.length > 100 ? '...' : ''}</div>
+    </div>
+  `;
+}
+
+/* ========== RENDER ========== */
+function boardToPixel(x, y) { return { px: x * TILE_SIZE, py: y * TILE_SIZE }; }
+
+// Helper to determine if a unit belongs to the current player
+function isMyUnit(unit) {
+  if (isNetworkMultiplayer()) {
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    return unit.owner === mySide;
+  }
+  return unit.owner === PLAYER_SIDE;
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Terrain tiles with images
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const { px, py } = boardToPixel(x, y);
+      const terrainKey = state.terrainMap[y][x];
+      const t = TERRAIN[terrainKey];
+      const img = terrainImages[terrainKey];
+      
+      // Draw terrain image if loaded, else fallback to color with pattern
+      if (img && !img.failed && img.complete && img.naturalHeight > 0) {
+        // Tile the 64x64 texture to fill the cell
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.clip();
+        // Draw texture scaled to tile size
+        ctx.drawImage(img, px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.restore();
+      } else {
+        // Fallback to color with pattern for better visibility
+        ctx.fillStyle = t.color;
+        ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        
+        // Add pattern overlay for special terrains
+        if (terrainKey === 'LABYRINTH' || terrainKey === 'CRUSH' || terrainKey === 'TOON') {
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+          ctx.setLineDash([]);
+        }
+      }
+      
+      // Border and label
+      ctx.strokeStyle = 'rgba(201,162,39,0.2)';
+      ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+      
+      // Terrain name label with shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(t.name, px + 6, py + 14);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText(t.name, px + 5, py + 13);
+    }
+  }
+  
+  // Summoning Areas highlight (adjacent to Deck Leader or Link Zones)
+  if (state.selectedCard) {
+    // Determine which player's turn it is and their owner value
+    let playerSide = PLAYER_SIDE;
+    if (isNetworkMultiplayer()) {
+      playerSide = isPlayer1 ? PLAYER_SIDE : -1;
+    }
+    
+    // Only show summon areas if it's the current player's turn
+    if (state.activePlayer === playerSide) {
+      // Check if it's an extra deck monster
+      const isExtraDeck = isExtraDeckMonster(state.selectedCard);
+      const areas = getSummoningAreas(playerSide, isExtraDeck);
+      
+      // Different colors for link zones vs deck leader areas
+      const isLinkZone = isExtraDeck && getAllLinkZones(playerSide).length > 0;
+      const fillColor = isLinkZone ? 'rgba(100,200,255,0.3)' : 'rgba(201,162,39,0.2)';
+      const strokeColor = isLinkZone ? 'rgba(100,200,255,0.8)' : 'rgba(201,162,39,0.6)';
+      
+      for (const area of areas) {
+        const { px, py } = boardToPixel(area.x, area.y);
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+        
+        // Add link zone indicator
+        if (isLinkZone) {
+          ctx.fillStyle = 'rgba(100,200,255,0.9)';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('LINK', px + TILE_SIZE/2, py + TILE_SIZE - 8);
+          ctx.textAlign = 'left';
+        }
+      }
+      
+      // Also highlight the Deck Leader (if not using link zones)
+      if (!isLinkZone) {
+        const leader = state.units.find(u => u.owner === playerSide && u.isDeckLeader);
+        if (leader) {
+          const { px, py } = boardToPixel(leader.x, leader.y);
+          ctx.strokeStyle = 'rgba(201,162,39,0.8)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+        }
+      }
+      
+      // Highlight link monsters that provide zones
+      if (isLinkZone) {
+        const linkMonsters = state.units.filter(u => u.owner === playerSide && u.isLinkMonster());
+        linkMonsters.forEach(linkMonster => {
+          const { px, py } = boardToPixel(linkMonster.x, linkMonster.y);
+          ctx.strokeStyle = 'rgba(100,200,255,0.6)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        });
+      }
+    }
+  }
+  
+  // Render link arrows on link monsters
+  state.units.forEach(u => {
+    if (u.isLinkMonster() && u.faceUp) {
+      renderLinkArrows(u);
+    }
+  });
+  
+  // Movement highlight for Deck Leader (1 space only)
+  if (state.selectedUnit && !state.selectedUnit.hasMoved && state.selectedUnit.isDeckLeader) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const x = state.selectedUnit.x + dx, y = state.selectedUnit.y + dy;
+        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) continue;
+        
+        const { px, py } = boardToPixel(x, y);
+        const targetTerrain = state.terrainMap[y][x];
+        const occupied = state.units.some(u => u.x === x && u.y === y);
+        
+        if (TERRAIN[targetTerrain]?.impassable) {
+          // Can't move into LABYRINTH
+          ctx.fillStyle = 'rgba(80,80,80,0.4)';
+        } else if (occupied) {
+          // Deck Leaders can't attack - blocked
+          ctx.fillStyle = 'rgba(80,80,80,0.3)';
+        } else {
+          // Valid move
+          ctx.fillStyle = 'rgba(201,162,39,0.3)';
+        }
+        ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+      }
+    }
+  }
+  
+  // Movement highlight for regular units (uses terrain-adjusted movement)
+  if (state.selectedUnit && !state.selectedUnit.hasMoved && !state.selectedUnit.isDeckLeader) {
+    const currentTerrain = state.terrainMap[state.selectedUnit.y][state.selectedUnit.x];
+    const mov = state.selectedUnit.getEffectiveMov(currentTerrain);
+    
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const dist = Math.abs(x - state.selectedUnit.x) + Math.abs(y - state.selectedUnit.y);
+        const targetTerrain = state.terrainMap[y][x];
+        
+        // Check if terrain is passable
+        const canEnter = canEnterTerrain(state.selectedUnit.card, targetTerrain);
+        
+        if (dist > 0 && dist <= mov) {
+          const { px, py } = boardToPixel(x, y);
+          const occupied = state.units.some(u => u.x === x && u.y === y);
+          
+          if (canEnter === false) {
+            // Impassable terrain (LABYRINTH)
+            ctx.fillStyle = 'rgba(80,80,80,0.4)';
+          } else if (canEnter === 'DESTROY') {
+            // CRUSH terrain warning for high ATK monsters
+            ctx.fillStyle = 'rgba(139,26,26,0.5)';
+          } else if (occupied) {
+            // Can attack enemy unit
+            ctx.fillStyle = 'rgba(139,26,26,0.25)';
+          } else {
+            // Valid move
+            ctx.fillStyle = 'rgba(26,58,107,0.25)';
+          }
+          ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+        }
+      }
+    }
+  }
+  
+  // Units
+  for (const u of state.units) {
+    const { px, py } = boardToPixel(u.x, u.y);
+    const terrain = state.terrainMap[u.y][u.x];
+    
+    if (u.isDeckLeader) {
+      const cardImg = cardDb.getImage(u.card);
+      const isMine = isMyUnit(u);
+      const borderColor = isMine ? '#4a7ac7' : '#c74a4a';
+      const bgColor = isMine ? 'rgba(26,58,107,0.95)' : 'rgba(107,26,26,0.95)';
+      
+      // Background
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+      
+      // Card art
+      if (cardImg?.complete && cardImg.naturalHeight > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(px + 6, py + 6, TILE_SIZE - 12, 55);
+        ctx.clip();
+        ctx.drawImage(cardImg, px + 6, py + 6, TILE_SIZE - 12, 80);
+        ctx.restore();
+      }
+      
+      // Crown badge to indicate Deck Leader
+      ctx.fillStyle = 'rgba(201,162,39,0.9)';
+      ctx.beginPath();
+      ctx.arc(px + TILE_SIZE - 18, py + 18, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = 'bold 14px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('♔', px + TILE_SIZE - 18, py + 23);
+      ctx.textAlign = 'left';
+      
+      // Info bar
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(px + 6, py + 61, TILE_SIZE - 12, TILE_SIZE - 68);
+      
+      // Name
+      ctx.fillStyle = '#e8d48b';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(u.card.name.slice(0, 13) + (u.card.name.length > 13 ? '…' : ''), px + 8, py + 73);
+      
+      // LP display - determine which LP to show based on unit owner and which player we are
+      let lp;
+      if (multiplayerMode === 'online' || multiplayerMode === 'p2p') {
+        if (u.owner === PLAYER_SIDE) {
+          lp = isPlayer1 ? state.deckLeaders.player.lp : state.deckLeaders.enemy.lp;
+        } else {
+          lp = isPlayer1 ? state.deckLeaders.enemy.lp : state.deckLeaders.player.lp;
+        }
+      } else {
+        lp = u.owner === PLAYER_SIDE ? state.deckLeaders.player.lp : state.deckLeaders.enemy.lp;
+      }
+      ctx.fillStyle = lp < 2000 ? '#c74a4a' : '#fff';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(`${lp} LP`, px + 8, py + 88);
+      
+      // MOV indicator
+      ctx.fillStyle = '#aaa';
+      ctx.font = '9px sans-serif';
+      ctx.fillText('MOV 1', px + 60, py + 88);
+      
+      // Border with movement indicator
+      ctx.strokeStyle = u.hasMoved ? '#666' : borderColor;
+      ctx.lineWidth = u.hasMoved ? 2 : 3;
+      ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+      
+      // Gold border to indicate Deck Leader
+      ctx.strokeStyle = '#c9a227';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+    } else {
+      const cardImg = cardDb.getImage(u.card);
+      const isMine = isMyUnit(u);
+      const borderColor = isMine ? '#4a7ac7' : '#c74a4a';
+      const isDefense = u.isInDefense();
+      const isFaceDown = u.isFaceDown();
+      
+      // Face-down cards show card back
+      if (isFaceDown) {
+        // Card back background (darker, mysterious)
+        ctx.fillStyle = isMine ? 'rgba(10,20,40,0.95)' : 'rgba(40,10,10,0.95)';
+        ctx.fillRect(px + 6, py + 6, TILE_SIZE - 12, TILE_SIZE - 12);
+        
+        // Card back pattern (simple design)
+        ctx.fillStyle = 'rgba(201,162,39,0.3)';
+        ctx.fillRect(px + 10, py + 10, TILE_SIZE - 20, TILE_SIZE - 20);
+        ctx.strokeStyle = 'rgba(201,162,39,0.5)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px + 12, py + 12, TILE_SIZE - 24, TILE_SIZE - 24);
+        
+        // Question mark or "?" to indicate face-down
+        ctx.fillStyle = 'rgba(201,162,39,0.6)';
+        ctx.font = 'bold 32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('?', px + TILE_SIZE/2, py + TILE_SIZE/2 + 10);
+        ctx.textAlign = 'left';
+        
+        // Position indicator (ATK/DEF) still visible
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(px + 8, py + 63, TILE_SIZE - 16, TILE_SIZE - 75);
+        ctx.fillStyle = isDefense ? '#6af' : '#f96';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(isDefense ? 'DEF' : 'ATK', px + 10, py + 75);
+        ctx.fillStyle = '#aaa';
+        ctx.font = '9px sans-serif';
+        ctx.fillText('Face-Down', px + 10, py + 88);
+      } else {
+        // Face-up card rendering
+        // DEF mode has different background
+        if (isDefense) {
+          ctx.fillStyle = u.owner === PLAYER_SIDE ? 'rgba(20,40,60,0.95)' : 'rgba(60,20,20,0.95)';
+        } else {
+          ctx.fillStyle = u.owner === PLAYER_SIDE ? 'rgba(26,58,107,0.95)' : 'rgba(107,26,26,0.95)';
+        }
+        ctx.fillRect(px + 6, py + 6, TILE_SIZE - 12, TILE_SIZE - 12);
+        
+        if (cardImg?.complete && cardImg.naturalHeight > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(px + 8, py + 8, TILE_SIZE - 16, 55);
+          ctx.clip();
+          ctx.drawImage(cardImg, px + 8, py + 8, TILE_SIZE - 16, 80);
+          ctx.restore();
+        }
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(px + 8, py + 63, TILE_SIZE - 16, TILE_SIZE - 75);
+        
+        ctx.fillStyle = '#e8d48b';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillText(u.card.name.slice(0, 13) + (u.card.name.length > 13 ? '…' : ''), px + 10, py + 75);
+        
+        const effAtk = u.getEffectiveAtk(terrain), effDef = u.getEffectiveDef(terrain);
+        ctx.font = '9px sans-serif';
+        
+        // Highlight active stat based on position
+        if (isDefense) {
+          ctx.fillStyle = '#888';
+          ctx.fillText(`ATK ${effAtk}`, px + 10, py + 88);
+          ctx.fillStyle = effDef > u.card.def ? '#4ac77a' : '#6af';
+          ctx.fillText(`DEF ${effDef}`, px + 60, py + 88);
+        } else {
+          ctx.fillStyle = effAtk > u.card.atk ? '#4ac77a' : '#fff';
+          ctx.fillText(`ATK ${effAtk}`, px + 10, py + 88);
+          ctx.fillStyle = '#888';
+          ctx.fillText(`DEF ${effDef}`, px + 60, py + 88);
+        }
+      }
+      
+      // Show MOV (moving from DEF switches to ATK)
+      const effMov = u.getEffectiveMov(terrain);
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(`MOV ${effMov}`, px + 10, py + 100);
+      
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 6, py + 6, TILE_SIZE - 12, TILE_SIZE - 12);
+      
+      // DEF mode indicator badge
+      if (isDefense) {
+        ctx.fillStyle = '#2a5a8a';
+        ctx.fillRect(px + TILE_SIZE - 32, py + 8, 22, 12);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('DEF', px + TILE_SIZE - 30, py + 17);
+      }
+      
+      const attrColors = { LIGHT: '#e8d48b', DARK: '#6a4a8b', FIRE: '#c74a4a', WATER: '#4a7ac7', EARTH: '#8b7a4a', WIND: '#4ac77a' };
+      ctx.fillStyle = attrColors[u.card.attr] || '#888';
+      ctx.beginPath();
+      ctx.arc(px + TILE_SIZE - 16, py + 16, 8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // XYZ Material Overlays
+      if (u.isXYZMonster() && u.xyzMaterials && u.xyzMaterials.length > 0) {
+        // Draw material count badge
+        ctx.fillStyle = 'rgba(139,26,139,0.9)';
+        ctx.beginPath();
+        ctx.arc(px + 16, py + 16, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(u.xyzMaterials.length.toString(), px + 16, py + 20);
+        ctx.textAlign = 'left';
+        
+        // Draw small material indicators around the unit
+        const materialCount = Math.min(u.xyzMaterials.length, 4); // Show up to 4 indicators
+        for (let i = 0; i < materialCount; i++) {
+          const angle = (i / materialCount) * Math.PI * 2;
+          const offsetX = Math.cos(angle) * 15;
+          const offsetY = Math.sin(angle) * 15;
+          ctx.fillStyle = 'rgba(139,26,139,0.7)';
+          ctx.beginPath();
+          ctx.arc(px + TILE_SIZE/2 + offsetX, py + TILE_SIZE/2 + offsetY, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      
+      // Link Rating display for Link monsters
+      if (u.isLinkMonster() && u.linkRating) {
+        ctx.fillStyle = 'rgba(100,200,255,0.9)';
+        ctx.fillRect(px + 8, py + TILE_SIZE - 20, 20, 12);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillText(`LINK-${u.linkRating}`, px + 10, py + TILE_SIZE - 10);
+      }
+      
+      if (isMine && (u.hasMoved || u.hasActed)) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(px + 6, py + 6, TILE_SIZE - 12, TILE_SIZE - 12);
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(u.hasActed ? 'DONE' : 'MOVED', px + TILE_SIZE/2 - 18, py + TILE_SIZE/2);
+      }
+    }
+    
+    if (state.selectedUnit?.uid === u.uid) {
+      ctx.strokeStyle = '#e8d48b';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+    }
+  }
+  
+  if (state.hoveredTile) {
+    const { px, py } = boardToPixel(state.hoveredTile.x, state.hoveredTile.y);
+    ctx.strokeStyle = 'rgba(232,212,139,0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+  }
+}
+
+// Render link arrows on link monsters
+function renderLinkArrows(linkMonster) {
+  if (!linkMonster.isLinkMonster() || !linkMonster.linkArrows || linkMonster.linkArrows.length === 0) return;
+  
+  const { px, py } = boardToPixel(linkMonster.x, linkMonster.y);
+  const centerX = px + TILE_SIZE / 2;
+  const centerY = py + TILE_SIZE / 2;
+  const arrowLength = 25;
+  
+  const arrowMap = {
+    'Top': { dx: 0, dy: -1, angle: -Math.PI / 2 },
+    'Top-Right': { dx: 1, dy: -1, angle: -Math.PI / 4 },
+    'Right': { dx: 1, dy: 0, angle: 0 },
+    'Bottom-Right': { dx: 1, dy: 1, angle: Math.PI / 4 },
+    'Bottom': { dx: 0, dy: 1, angle: Math.PI / 2 },
+    'Bottom-Left': { dx: -1, dy: 1, angle: 3 * Math.PI / 4 },
+    'Left': { dx: -1, dy: 0, angle: Math.PI },
+    'Top-Left': { dx: -1, dy: -1, angle: -3 * Math.PI / 4 }
+  };
+  
+  linkMonster.linkArrows.forEach(arrow => {
+    const dir = arrowMap[arrow];
+    if (!dir) return;
+    
+    const endX = centerX + Math.cos(dir.angle) * arrowLength;
+    const endY = centerY + Math.sin(dir.angle) * arrowLength;
+    
+    // Draw arrow line
+    ctx.strokeStyle = 'rgba(100,200,255,0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    
+    // Draw arrowhead
+    ctx.fillStyle = 'rgba(100,200,255,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(
+      endX - Math.cos(dir.angle - Math.PI / 6) * 8,
+      endY - Math.sin(dir.angle - Math.PI / 6) * 8
+    );
+    ctx.lineTo(
+      endX - Math.cos(dir.angle + Math.PI / 6) * 8,
+      endY - Math.sin(dir.angle + Math.PI / 6) * 8
+    );
+    ctx.closePath();
+    ctx.fill();
+  });
+}
+
+function renderHand() {
+  const handUI = document.getElementById('handUI');
+  handUI.innerHTML = '';
+  
+  // Determine which hand to show based on multiplayer mode and active player
+  let currentHand, currentDeck;
+  if (multiplayerMode === 'local') {
+    // Local multiplayer - show active player's hand
+    currentHand = (state.activePlayer === -1) ? state.player2Hand : state.hand;
+    currentDeck = (state.activePlayer === -1) ? state.aiDeck : state.deck;
+  } else if (multiplayerMode === 'online') {
+    // Online multiplayer - always show our hand
+    currentHand = state.hand;
+    currentDeck = state.deck;
+  } else {
+    // Single player
+    currentHand = state.hand;
+    currentDeck = state.deck;
+  }
+  
+  // Update deck count display
+  document.getElementById('deckCount').innerText = currentDeck.length;
+  
+  currentHand.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'card-ui' + (state.selectedCard === c ? ' selected' : '');
+    div.innerHTML = `
+      <img src="${c.getImgPath()}" onerror="this.src='${c.getApiImgPath()}'">
+      <div class="name">${c.name}</div>
+      <div class="stats">${c.atk}/${c.def}</div>
+    `;
+    div.onclick = () => {
+      // Check if it's our turn
+      let isMyTurn = false;
+      if (multiplayerMode === 'local') {
+        // Local multiplayer - check if active player matches
+        if (state.activePlayer === -1 && state.player2Hand.includes(c)) isMyTurn = true;
+        if (state.activePlayer === 1 && state.hand.includes(c)) isMyTurn = true;
+      } else if (isNetworkMultiplayer()) {
+        // Network multiplayer - check if it's our turn based on which player we are
+        const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+        isMyTurn = (state.activePlayer === mySide);
+        console.log('[handClick] Turn check - isPlayer1:', isPlayer1, 'mySide:', mySide, 'activePlayer:', state.activePlayer, 'isMyTurn:', isMyTurn);
+      } else {
+        // Single player
+        isMyTurn = (state.activePlayer === PLAYER_SIDE);
+      }
+      
+      if (!isMyTurn) {
+        log('Not your turn!');
+        return;
+      }
+      
+      state.selectedCard = c;
+      state.selectedUnit = null;
+      const playerText = multiplayerMode === 'online' 
+        ? (isPlayer1 ? 'Player 1' : 'Player 2')
+        : (multiplayerMode === 'local' && state.activePlayer === -1 ? 'Player 2' : 'You');
+      document.getElementById('turnIndicator').innerText = playerText + ' placing: ' + c.name;
+      renderHand();
+      render();
+    };
+    div.onmouseenter = () => showCardPreview(c);
+    div.onmouseleave = () => showCardPreview(null);
+    handUI.appendChild(div);
+  });
+  
+  // Show hand count
+  const handCount = document.querySelector('.hand-count');
+  if (handCount) {
+    handCount.textContent = currentHand.length;
+  }
+}
+
+/* ========== EVENTS ========== */
+function setupEventListeners() {
+  canvas.addEventListener('mousemove', ev => {
+    const rect = canvas.getBoundingClientRect();
+    const tx = Math.floor((ev.clientX - rect.left) / TILE_SIZE);
+    const ty = Math.floor((ev.clientY - rect.top) / TILE_SIZE);
+    
+    if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS) {
+      state.hoveredTile = { x: tx, y: ty };
+      const unit = state.units.find(u => u.x === tx && u.y === ty);
+      if (unit) {
+        // Show Deck Leader with special info
+        showCardPreview(unit.card, unit, state.terrainMap[ty][tx]);
+      } else if (!state.selectedCard) {
+        showCardPreview(null);
+      }
+    } else {
+      state.hoveredTile = null;
+    }
+    render();
+  });
+
+  canvas.addEventListener('click', ev => {
+    if (state.gameOver) return;
+    
+    // Check if it's our turn
+    let isMyTurn = false;
+    let mySide = PLAYER_SIDE;
+    let playerKey = 'player';
+    
+    if (multiplayerMode === 'local') {
+      // Local multiplayer - check active player
+      const isPlayer2Turn = state.activePlayer === -1;
+      isMyTurn = true; // Allow actions on active player's turn
+      mySide = isPlayer2Turn ? -1 : PLAYER_SIDE;
+      playerKey = isPlayer2Turn ? 'enemy' : 'player';
+    } else if (isNetworkMultiplayer()) {
+      // Network multiplayer - check based on which player we are
+      mySide = isPlayer1 ? PLAYER_SIDE : -1;
+      isMyTurn = (state.activePlayer === mySide);
+      playerKey = isPlayer1 ? 'player' : 'enemy';
+      console.log('[click] Turn check - isPlayer1:', isPlayer1, 'mySide:', mySide, 'activePlayer:', state.activePlayer, 'isMyTurn:', isMyTurn);
+    } else {
+      // Single player
+      isMyTurn = (state.activePlayer === PLAYER_SIDE);
+      mySide = PLAYER_SIDE;
+      playerKey = 'player';
+    }
+    
+    if (!isMyTurn) {
+      log('Not your turn!');
+      return;
+    }
+    
+    const rect = canvas.getBoundingClientRect();
+    const tx = Math.floor((ev.clientX - rect.left) / TILE_SIZE);
+    const ty = Math.floor((ev.clientY - rect.top) / TILE_SIZE);
+    if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return;
+    
+    // Show summon menu when clicking valid summon area
+    if (state.selectedCard && isMyTurn) {
+      const playerSide = mySide;
+      
+      // Check summon limit
+      if (state.hasSummoned[playerKey]) {
+        const playerText = multiplayerMode === 'online' 
+          ? (isPlayer1 ? 'Player 1' : 'Player 2')
+          : (multiplayerMode === 'local' && state.activePlayer === -1 ? 'Player 2' : 'You');
+        log(`${playerText} can only summon 1 monster per turn!`);
+        return;
+      }
+      
+      // Check if it's an extra deck monster
+      const isExtraDeck = isExtraDeckMonster(state.selectedCard);
+      const areas = getSummoningAreas(playerSide, isExtraDeck);
+      const validArea = areas.find(a => a.x === tx && a.y === ty);
+      
+      if (validArea) {
+        // Store summon location and show menu
+        state.pendingSummon = { x: tx, y: ty };
+        showSummonMenu();
+        return;
+      } else {
+        if (isExtraDeck) {
+          const linkZones = getAllLinkZones(playerSide);
+          if (linkZones.length > 0) {
+            log('Extra Deck monsters must be summoned to Link Zones!');
+          } else {
+            log('Extra Deck monsters must be summoned adjacent to your Deck Leader (no Link Zones available)!');
+          }
+        } else {
+          log('Summon adjacent to your Deck Leader!');
+        }
+      }
+      return;
+    }
+    
+    const clicked = state.units.find(u => u.x === tx && u.y === ty);
+    if (clicked) {
+      // Determine which side we are
+      const mySide = isNetworkMultiplayer()
+        ? (isPlayer1 ? PLAYER_SIDE : -1)
+        : PLAYER_SIDE;
+      console.log('[click] Unit ownership check - clicked.owner:', clicked.owner, 'mySide:', mySide, 'isPlayer1:', isPlayer1);
+      
+      // Clicking on a Deck Leader
+      if (clicked.isDeckLeader) {
+        // Own Deck Leader - select it for movement
+        if (clicked.owner === mySide) {
+          state.selectedUnit = clicked;
+          state.selectedCard = null;
+          document.getElementById('turnIndicator').innerText = 'Deck Leader: ' + clicked.card.name;
+          render();
+          return;
+        }
+        // Enemy Deck Leader - attack it if adjacent
+        if (state.selectedUnit && !state.selectedUnit.hasActed) {
+          // Safety check: ensure the selected unit belongs to the current player
+          if (state.selectedUnit.owner !== mySide) {
+            console.error('[click] Attempted to attack with enemy unit! Owner:', state.selectedUnit.owner, 'mySide:', mySide);
+            log('Cannot attack with enemy units!');
+            state.selectedUnit = null;
+            render();
+            return;
+          }
+          
+          if (state.selectedUnit.isInDefense()) {
+            log('Cannot attack in DEF position!');
+            return;
+          }
+          
+          // Check if adjacent
+          if (Math.abs(state.selectedUnit.x - tx) + Math.abs(state.selectedUnit.y - ty) === 1) {
+            console.log('[click] Attacking deck leader with', state.selectedUnit.card.name, 'isDeckLeader:', state.selectedUnit.isDeckLeader);
+            attackDeckLeader(state.selectedUnit, clicked);
+          } else {
+            log('Must be adjacent to attack!');
+          }
+        } else if (!state.selectedUnit) {
+          log('Select a unit first, then click the deck leader to attack!');
+        } else if (state.selectedUnit.hasActed) {
+          log('This unit has already acted this turn!');
+        }
+        return;
+      }
+      
+      // Clicking on own unit
+      if (clicked.owner === mySide) {
+        // If face-down, flip it face-up (costs action)
+        if (clicked.isFaceDown() && !clicked.hasActed) {
+          if (clicked.flipFaceUp()) {
+            log(`<span style="color:var(--gold-light)">${clicked.card.name}</span> flipped face-up!`);
+            
+            // Send action to server/peer in network multiplayer mode
+            if (isNetworkMultiplayer() && multiplayerClient) {
+              multiplayerClient.sendAction({
+                type: 'flip',
+                unitId: clicked.uid
+              });
+            }
+            
+            state.selectedUnit = null;
+            render();
+            return;
+          }
+        }
+        
+        // If clicking the same unit that's already selected, toggle position
+        if (state.selectedUnit?.uid === clicked.uid && !clicked.hasActed) {
+          clicked.togglePosition();
+          log(`${clicked.card.name} switched to ${clicked.position} mode`);
+          
+          // Send action to server/peer in network multiplayer mode
+          if (isNetworkMultiplayer() && multiplayerClient) {
+            multiplayerClient.sendAction({
+              type: 'togglePosition',
+              unitId: clicked.uid,
+              newPosition: clicked.position
+            });
+          }
+          
+          state.selectedUnit = null;
+          render();
+          return;
+        }
+        state.selectedUnit = clicked;
+        state.selectedCard = null;
+        const faceText = clicked.isFaceDown() ? ' [Face-Down]' : '';
+        const posText = clicked.position === 'DEF' ? ' [DEF]' : '';
+        document.getElementById('turnIndicator').innerText = 'Selected: ' + (clicked.isFaceDown() ? 'Face-Down Card' : clicked.card.name) + posText + faceText;
+        render();
+      } else if (state.selectedUnit && !state.selectedUnit.hasActed && !state.selectedUnit.isDeckLeader) {
+        // Safety check: ensure the selected unit belongs to the current player
+        if (state.selectedUnit.owner !== mySide) {
+          console.error('[click] Attempted to attack with enemy unit! Owner:', state.selectedUnit.owner, 'mySide:', mySide);
+          log('Cannot attack with enemy units!');
+          state.selectedUnit = null;
+          render();
+          return;
+        }
+        
+        // Attack enemy unit (Deck Leaders can't attack)
+        if (state.selectedUnit.isInDefense()) {
+          log('Cannot attack in DEF position!');
+          return;
+        }
+        // Can't attack face-down DEF cards directly
+        if (clicked.isFaceDown() && clicked.isInDefense()) {
+          log('Cannot attack face-down DEF cards! Flip them face-up first.');
+          return;
+        }
+        if (Math.abs(state.selectedUnit.x - tx) + Math.abs(state.selectedUnit.y - ty) === 1) {
+          // Store defender info BEFORE any changes
+          const defenderId = clicked.uid;
+          const defenderXBefore = clicked.x;
+          const defenderYBefore = clicked.y;
+          const defenderWasFaceDown = clicked.isFaceDown();
+          const attackerXBefore = state.selectedUnit.x;
+          const attackerYBefore = state.selectedUnit.y;
+          
+          // Flip face-down card face-up when attacked
+          let defenderWasFlipped = false;
+          if (defenderWasFaceDown) {
+            clicked.flipFaceUp();
+            defenderWasFlipped = true;
+            log(`<span style="color:var(--crimson)">${clicked.card.name}</span> flipped face-up!`);
+          }
+          
+          resolveCombat(state.selectedUnit, clicked);
+          state.selectedUnit.hasActed = state.selectedUnit.hasMoved = true;
+          
+          // Check if units were destroyed after combat
+          const defenderDestroyed = !state.units.find(u => u.uid === defenderId);
+          const attackerDestroyed = !state.units.find(u => u.uid === state.selectedUnit?.uid);
+          
+          // Check if attacker moved (only if defender was destroyed in ATK mode)
+          const attackerMoved = state.selectedUnit && 
+            (state.selectedUnit.x !== attackerXBefore || state.selectedUnit.y !== attackerYBefore);
+          
+          // Send action to server/peer in network multiplayer mode
+          if (isNetworkMultiplayer() && multiplayerClient && state.selectedUnit) {
+            multiplayerClient.sendAction({
+              type: 'attack',
+              attackerId: state.selectedUnit.uid,
+              defenderId: defenderId,
+              attackerX: state.selectedUnit.x,
+              attackerY: state.selectedUnit.y,
+              attackerXBefore: attackerXBefore,
+              attackerYBefore: attackerYBefore,
+              defenderXBefore: defenderXBefore,
+              defenderYBefore: defenderYBefore,
+              defenderDestroyed: defenderDestroyed,
+              attackerDestroyed: attackerDestroyed,
+              attackerMoved: attackerMoved,
+              defenderWasFlipped: defenderWasFlipped
+            });
+          }
+          
+          render();
+        } else {
+          log('Must be adjacent!');
+        }
+      }
+      return;
+    }
+    
+    // Move unit or Deck Leader
+    if (state.selectedUnit && !state.selectedUnit.hasMoved) {
+      // Safety check: ensure the selected unit belongs to the current player
+      const mySide = isNetworkMultiplayer()
+        ? (isPlayer1 ? PLAYER_SIDE : -1)
+        : PLAYER_SIDE;
+      if (state.selectedUnit.owner !== mySide) {
+        console.error('[click] Attempted to move enemy unit! Owner:', state.selectedUnit.owner, 'mySide:', mySide);
+        log('Cannot move enemy units!');
+        state.selectedUnit = null;
+        render();
+        return;
+      }
+      
+      // Face-down cards can't move - must flip face-up first
+      if (state.selectedUnit.isFaceDown()) {
+        log('Face-down cards cannot move! Flip them face-up first.');
+        return;
+      }
+      
+      const currentTerrain = state.terrainMap[state.selectedUnit.y][state.selectedUnit.x];
+      const dist = Math.abs(state.selectedUnit.x - tx) + Math.abs(state.selectedUnit.y - ty);
+      
+      // Deck Leader can only move 1 space
+      if (state.selectedUnit.isDeckLeader) {
+        // Check target isn't LABYRINTH
+        const targetTerrain = state.terrainMap[ty][tx];
+        if (TERRAIN[targetTerrain]?.impassable) {
+          log('Cannot move into LABYRINTH!');
+          return;
+        }
+        if (dist === 1) {
+          state.selectedUnit.x = tx;
+          state.selectedUnit.y = ty;
+          state.selectedUnit.hasMoved = true;
+          log(`${state.selectedUnit.card.name} (Deck Leader) moved`);
+          
+          // Send action to server/peer in network multiplayer mode
+          if (isNetworkMultiplayer() && multiplayerClient) {
+            multiplayerClient.sendAction({
+              type: 'move',
+              unitId: state.selectedUnit.uid,
+              x: tx,
+              y: ty
+            });
+          }
+          
+          render();
+        }
+        return;
+      }
+      
+      // Regular unit movement
+      const mov = state.selectedUnit.getEffectiveMov(currentTerrain);
+      const targetTerrain = state.terrainMap[ty][tx];
+      
+      if (dist > 0 && dist <= mov) {
+        // Check if terrain is passable
+        const canEnter = canEnterTerrain(state.selectedUnit.card, targetTerrain);
+        
+        if (canEnter === false) {
+          // LABYRINTH - only monsters with "Labyrinth" in name can enter
+          log(`Cannot move into LABYRINTH! (Only monsters with "Labyrinth" in their name can enter)`);
+          return;
+        }
+        
+        if (canEnter === 'DESTROY') {
+          // CRUSH terrain - destroy high ATK monsters
+          const unitIndex = state.units.findIndex(u => u.uid === state.selectedUnit.uid);
+          if (unitIndex >= 0) {
+            sendToGraveyard(state.selectedUnit.card, state.selectedUnit.owner);
+            state.units.splice(unitIndex, 1);
+          }
+          log(`<span style="color:var(--crimson)">${state.selectedUnit.card.name} is destroyed by CRUSH terrain!</span>`);
+          state.selectedUnit = null;
+          render();
+          return;
+        }
+        
+        // If in DEF, moving automatically switches to ATK
+        if (state.selectedUnit.isInDefense()) {
+          state.selectedUnit.position = 'ATK';
+          log(`${state.selectedUnit.card.name} switches to ATK and moves`);
+        } else {
+          log(`${state.selectedUnit.card.name} moved`);
+        }
+        state.selectedUnit.x = tx;
+        state.selectedUnit.y = ty;
+        state.selectedUnit.hasMoved = true;
+        
+        // Send action to server/peer in network multiplayer mode
+        if (isNetworkMultiplayer() && multiplayerClient) {
+          multiplayerClient.sendAction({
+            type: 'move',
+            unitId: state.selectedUnit.uid,
+            x: tx,
+            y: ty,
+            positionChange: state.selectedUnit.isInDefense() !== (state.selectedUnit.position === 'DEF'),
+            newPosition: state.selectedUnit.position
+          });
+        }
+        
+        render();
+      }
+    }
+  });
+  
+  // Close menu when clicking outside
+  document.getElementById('summonMenu').addEventListener('click', ev => {
+    if (ev.target.id === 'summonMenu') {
+      closeSummonMenu();
+    }
+  });
+
+  document.getElementById('endTurn').addEventListener('click', endTurn);
+  
+  // Graveyard viewer buttons
+  document.getElementById('viewGraveyard').addEventListener('click', () => showGraveyard('my'));
+  document.getElementById('viewMyGraveyard').addEventListener('click', () => showGraveyard('my'));
+  document.getElementById('viewEnemyGraveyard').addEventListener('click', () => showGraveyard('enemy'));
+  
+  // Extra deck viewer buttons
+  document.getElementById('viewExtraDeck').addEventListener('click', () => showExtraDeck('my'));
+  document.getElementById('viewMyExtraDeck').addEventListener('click', () => showExtraDeck('my'));
+  document.getElementById('viewEnemyExtraDeck').addEventListener('click', () => showExtraDeck('enemy'));
+  
+  // Initialize displays
+  updateGraveyardDisplay();
+  updateExtraDeckDisplay();
+}
+
+/* ========== GRAVEYARD ========== */
+// Send a card to the graveyard based on owner
+function sendToGraveyard(card, owner) {
+  // Determine which graveyard to use
+  let graveyard;
+  if (isNetworkMultiplayer()) {
+    // In network multiplayer, graveyards are consistent:
+    // graveyard = Player 1's graveyard
+    // enemyGraveyard = Player 2's graveyard
+    if (owner === PLAYER_SIDE) {
+      graveyard = state.graveyard;
+    } else {
+      graveyard = state.enemyGraveyard;
+    }
+  } else {
+    // Single player or local multiplayer
+    if (owner === PLAYER_SIDE) {
+      graveyard = state.graveyard;
+    } else {
+      graveyard = state.enemyGraveyard;
+    }
+  }
+  
+  // Add card to graveyard
+  graveyard.push(card);
+  console.log(`[sendToGraveyard] ${card.name} sent to graveyard. Owner: ${owner}, Graveyard size: ${graveyard.length}`);
+  
+  // Update graveyard display if it exists
+  updateGraveyardDisplay();
+}
+
+/* ========== COMBAT ========== */
+function resolveCombat(attacker, defender) {
+  const atkTerrain = state.terrainMap[attacker.y][attacker.x];
+  const defTerrain = state.terrainMap[defender.y][defender.x];
+  
+  // Attacker always uses ATK
+  const atkPower = attacker.getEffectiveAtk(atkTerrain);
+  
+  // Defender uses DEF if in defense position, ATK if in attack position
+  const defPower = defender.getCombatPower(defTerrain);
+  const defMode = defender.isInDefense() ? 'DEF' : 'ATK';
+  
+  log(`<span style="color:var(--gold)">${attacker.card.name}</span> ATK ${atkPower} vs <span style="color:var(--crimson)">${defender.card.name}</span> ${defMode} ${defPower}`);
+  
+  if (atkPower > defPower) {
+    // Defender destroyed - send to graveyard
+    const defenderIndex = state.units.findIndex(u => u.uid === defender.uid);
+    if (defenderIndex >= 0) {
+      sendToGraveyard(defender.card, defender.owner);
+      state.units.splice(defenderIndex, 1);
+    }
+    log(`<span style="color:var(--crimson)">${defender.card.name}</span> destroyed!`);
+    // Attacker moves to defender's position only if defender was in ATK mode
+    // AND the terrain is passable (not LABYRINTH unless attacker has "Labyrinth" in name)
+    if (!defender.isInDefense()) {
+      const canEnter = canEnterTerrain(attacker.card, defTerrain);
+      if (canEnter === false) {
+        log(`Cannot move onto LABYRINTH terrain!`);
+      } else {
+        attacker.x = defender.x;
+        attacker.y = defender.y;
+      }
+    }
+  } else if (defPower > atkPower) {
+    // If defender is in DEF, attacker is not destroyed but takes no damage
+    if (defender.isInDefense()) {
+      log(`Attack blocked! ${defender.card.name} holds the line!`);
+    } else {
+      // Defender was in ATK - attacker is destroyed
+      const attackerIndex = state.units.findIndex(u => u.uid === attacker.uid);
+      if (attackerIndex >= 0) {
+        sendToGraveyard(attacker.card, attacker.owner);
+        state.units.splice(attackerIndex, 1);
+      }
+      log(`<span style="color:var(--gold)">${attacker.card.name}</span> destroyed!`);
+      state.selectedUnit = null;
+    }
+  } else {
+    // Equal power
+    if (defender.isInDefense()) {
+      log('Attack blocked!');
+    } else {
+      // Both destroyed in ATK vs ATK draw
+      const defenderIndex = state.units.findIndex(u => u.uid === defender.uid);
+      const attackerIndex = state.units.findIndex(u => u.uid === attacker.uid);
+      if (defenderIndex >= 0) {
+        sendToGraveyard(defender.card, defender.owner);
+        state.units.splice(defenderIndex, 1);
+      }
+      if (attackerIndex >= 0) {
+        sendToGraveyard(attacker.card, attacker.owner);
+        state.units.splice(attackerIndex, 1);
+      }
+      log('Both monsters destroyed!');
+      state.selectedUnit = null;
+    }
+  }
+}
+
+function attackDeckLeader(attacker, leader) {
+  const atkPower = attacker.getEffectiveAtk(state.terrainMap[attacker.y][attacker.x]);
+  
+  // Determine which LP to update based on leader owner
+  // In multiplayer, Player 1 owner = PLAYER_SIDE (1), Player 2 owner = -1
+  // NOTE: LP storage is consistent across both players:
+  //   state.deckLeaders.player = Player 1's LP
+  //   state.deckLeaders.enemy = Player 2's LP
+  let lp;
+  if (isNetworkMultiplayer()) {
+    // For network multiplayer, map owners correctly
+    if (leader.owner === PLAYER_SIDE) {
+      // Player 1's leader - always stored in state.deckLeaders.player
+      lp = state.deckLeaders.player;
+    } else {
+      // Player 2's leader - always stored in state.deckLeaders.enemy
+      lp = state.deckLeaders.enemy;
+    }
+  } else {
+    // Single player or local multiplayer
+    lp = leader.owner === PLAYER_SIDE ? state.deckLeaders.player : state.deckLeaders.enemy;
+  }
+  
+  const oldLP = lp.lp;
+  lp.lp -= atkPower;
+  if (lp.lp < 0) lp.lp = 0;
+  
+  console.log('[attackDeckLeader] LP update:', {
+    isPlayer1,
+    leaderOwner: leader.owner,
+    atkPower,
+    oldLP,
+    newLP: lp.lp,
+    lpObject: lp === state.deckLeaders.player ? 'player' : 'enemy'
+  });
+  
+  log(`<span style="color:var(--gold)">${attacker.card.name}</span> dealt ${atkPower} damage!`);
+  attacker.hasActed = attacker.hasMoved = true;
+  updateLPDisplay();
+  
+  // Send action to server/peer in network multiplayer mode
+  if (isNetworkMultiplayer() && multiplayerClient) {
+    const leaderOwner = leader.owner;
+    const isPlayer1Leader = leaderOwner === PLAYER_SIDE;
+    multiplayerClient.sendAction({
+      type: 'attackDeckLeader',
+      attackerId: attacker.uid,
+      leaderOwner: leaderOwner,
+      damage: atkPower,
+      newLP: lp.lp,
+      gameOver: lp.lp <= 0
+    });
+  }
+  
+  if (lp.lp <= 0) {
+    lp.lp = 0;
+    updateLPDisplay();
+    state.gameOver = true;
+    
+    // Determine victory based on which leader died
+    const mySide = isNetworkMultiplayer()
+      ? (isPlayer1 ? PLAYER_SIDE : -1)
+      : PLAYER_SIDE;
+    const victory = leader.owner !== mySide; // We win if enemy leader dies
+    
+    const reason = victory 
+      ? `You dealt the final blow to ${leader.card.name}!`
+      : `Your Deck Leader ${leader.card.name} has been defeated!`;
+    showGameOverScreen(victory, reason);
+    const winner = victory ? 'VICTORY' : 'DEFEAT';
+    log(`<span style="color:var(--gold-light);font-size:16px">${winner}!</span>`);
+    document.getElementById('turnIndicator').innerText = winner;
+  }
+  render();
+}
+
+/* ========== TURNS ========== */
+function endTurn() {
+  if (state.gameOver) return;
+  
+  // Check if it's our turn
+  let isMyTurn = false;
+  if (isNetworkMultiplayer()) {
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    isMyTurn = (state.activePlayer === mySide);
+    console.log('[endTurn] Turn check - isPlayer1:', isPlayer1, 'mySide:', mySide, 'activePlayer:', state.activePlayer, 'isMyTurn:', isMyTurn);
+  } else {
+    isMyTurn = (state.activePlayer === PLAYER_SIDE);
+  }
+  
+  if (!isMyTurn) {
+    log('Not your turn!');
+    return;
+  }
+  
+  // For network multiplayer, send action to server/peer
+  if (isNetworkMultiplayer() && multiplayerClient) {
+    multiplayerClient.sendAction({
+      type: 'endTurn'
+    });
+  }
+  
+  // Reset move/action flags for the player who just ended their turn
+  state.units.forEach(u => { if (u.owner === state.activePlayer) { u.hasMoved = u.hasActed = false; } });
+  state.selectedCard = state.selectedUnit = null;
+  previousActivePlayer = state.activePlayer; // Track previous before switching
+  state.activePlayer *= -1;
+  
+  // Reset summon flag and draw card at start of new turn
+  const newPlayerKey = state.activePlayer === PLAYER_SIDE ? 'player' : 'enemy';
+  state.hasSummoned[newPlayerKey] = false;
+  
+  // Draw 1 card at start of turn
+  const mySide = (multiplayerMode === 'online' || multiplayerMode === 'p2p') 
+    ? (isPlayer1 ? PLAYER_SIDE : -1)
+    : PLAYER_SIDE;
+  
+  if (state.activePlayer === mySide) {
+    if (state.deck.length > 0) {
+      drawCardToHand();
+      log('Draw phase: 1 card drawn');
+    } else {
+      log('Deck empty - no card drawn!');
+    }
+  } else {
+    // For local multiplayer, player 2 draws from their deck
+    if (multiplayerMode === 'local') {
+      if (state.aiDeck.length > 0) {
+        // In local mode, aiDeck is actually player 2's deck
+        const card = state.aiDeck.pop();
+        state.player2Hand.push(card);
+        renderHand(); // Update hand display
+        log(`<span style="color:var(--gold-light)">Player 2 draws a card</span> (${state.aiDeck.length} remaining)`);
+      } else {
+        log('<span style="color:var(--gold-light)">Player 2 deck empty - no card drawn!</span>');
+      }
+    } else {
+      // AI draws
+      if (state.aiDeck.length > 0) {
+        const card = state.aiDeck.pop();
+        log(`<span style="color:var(--crimson)">Enemy draws a card</span> (${state.aiDeck.length} remaining)`);
+      } else {
+        log('<span style="color:var(--crimson)">Enemy deck empty - no card drawn!</span>');
+      }
+    }
+  }
+  
+  // Check for checkmate at the start of the new player's turn
+  if (checkForCheckmate()) {
+    render();
+    return;
+  }
+  
+  // Update turn indicator
+  if (multiplayerMode === 'local') {
+    document.getElementById('turnIndicator').innerText = state.activePlayer === PLAYER_SIDE ? "Player 1's Turn" : "Player 2's Turn";
+  } else if (isNetworkMultiplayer()) {
+    // For network multiplayer, show which player's turn it is
+    const mySide = isPlayer1 ? PLAYER_SIDE : -1;
+    const isMyTurn = state.activePlayer === mySide;
+    if (isMyTurn) {
+      document.getElementById('turnIndicator').innerText = `${isPlayer1 ? 'Player 1' : 'Player 2'}'s Turn`;
+    } else {
+      document.getElementById('turnIndicator').innerText = `${isPlayer1 ? 'Player 2' : 'Player 1'}'s Turn`;
+    }
+  } else {
+    document.getElementById('turnIndicator').innerText = state.activePlayer === PLAYER_SIDE ? 'Your Turn' : "Enemy's Turn";
+  }
+  
+  render();
+  
+  // Only run AI if single player mode or campaign mode
+  const isCampaignMode = multiplayerMode === 'campaign';
+  if (state.activePlayer === -1 && (!multiplayerMode || isCampaignMode)) {
+    setTimeout(aiTurn, 700);
+  }
+}
+
+function aiTurn() {
+  if (state.gameOver) return;
+  log('<span style="color:var(--crimson)">Enemy turn</span>');
+  
+  // Check for checkmate at start of AI turn
+  if (checkForCheckmate()) {
+    render();
+    return;
+  }
+  
+  // AI summons adjacent to its Deck Leader (only 1 per turn)
+  if (!state.hasSummoned.enemy && rand(100) < 55) {
+    // Check for normal monsters first (from main deck)
+    let c = null;
+    let isExtraDeckCard = false;
+    
+    // Try to summon a normal monster from main deck
+    if (state.aiDeck.length > 0) {
+      // Look for a normal monster (not Extra Deck)
+      for (let i = 0; i < state.aiDeck.length; i++) {
+        if (!isExtraDeckMonster(state.aiDeck[i])) {
+          c = state.aiDeck.splice(i, 1)[0];
+          break;
+        }
+      }
+    }
+    
+    // If no normal monster found, try Extra Deck (but only if materials are available)
+    if (!c && state.enemyExtraDeck.length > 0) {
+      const aiUnits = state.units.filter(u => u.owner === -1 && !u.isDeckLeader);
+      if (aiUnits.length > 0) {
+        // Try to find an Extra Deck monster we can summon
+        for (let i = 0; i < state.enemyExtraDeck.length; i++) {
+          const extraCard = state.enemyExtraDeck[i];
+          const summonType = getSummonType(extraCard);
+          if (summonType) {
+            // Check if we have enough materials (simplified check - just need at least 1 for now)
+            // For Link monsters, need materials equal to link rating
+            if (summonType === 'Link') {
+              const linkRating = extraCard.linkval || extraCard.level || 1;
+              if (aiUnits.length >= linkRating) {
+                c = extraCard;
+                isExtraDeckCard = true;
+                state.enemyExtraDeck.splice(i, 1);
+                break;
+              }
+            } else {
+              // For Fusion/Synchro/XYZ, need at least 2 materials typically
+              if (aiUnits.length >= 2) {
+                c = extraCard;
+                isExtraDeckCard = true;
+                state.enemyExtraDeck.splice(i, 1);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // If we found a card to summon
+    if (c) {
+      if (isExtraDeckCard) {
+        // Special summon Extra Deck monster with materials
+        const aiUnits = state.units.filter(u => u.owner === -1 && !u.isDeckLeader);
+        const summonType = getSummonType(c);
+        
+        if (aiUnits.length > 0 && summonType) {
+          // Select materials based on summon type
+          let materials = [];
+          if (summonType === 'Link') {
+            const linkRating = c.linkval || c.level || 1;
+            // Select materials equal to link rating
+            materials = aiUnits.slice(0, Math.min(linkRating, aiUnits.length));
+          } else if (summonType === 'XYZ') {
+            // XYZ needs 2 materials of same level (simplified - just take 2)
+            materials = aiUnits.slice(0, Math.min(2, aiUnits.length));
+          } else {
+            // Fusion/Synchro - need 2+ materials
+            materials = aiUnits.slice(0, Math.min(2, aiUnits.length));
+          }
+          
+          if (materials.length > 0) {
+            // Get summon location
+            const possible = getSummoningAreas(-1, true); // Extra deck monsters
+            if (possible.length > 0) {
+              const pos = possible[rand(possible.length)];
+              
+              // Remove materials from field
+              const materialIds = materials.map(m => m.uid);
+              materials.forEach(m => {
+                const idx = state.units.findIndex(u => u.uid === m.uid);
+                if (idx >= 0) {
+                  sendToGraveyard(state.units[idx].card, -1);
+                  state.units.splice(idx, 1);
+                }
+              });
+              
+              // Create the new unit
+              const newUnit = new Unit(c, -1, pos.x, pos.y, 'ATK', true);
+              if (summonType === 'XYZ' && materials.length > 0) {
+                // Attach materials as XYZ overlays
+                newUnit.xyzMaterials = materials.map(m => m.card);
+              }
+              state.units.push(newUnit);
+              
+              state.hasSummoned.enemy = true;
+              log(`Enemy special summons <span style="color:var(--crimson)">${c.name}</span> using ${materials.length} material(s)!`);
+            } else {
+              // No valid summon location - put card back
+              state.enemyExtraDeck.push(c);
+            }
+          } else {
+            // Not enough materials - put card back
+            state.enemyExtraDeck.push(c);
+          }
+        } else {
+          // Not enough materials - put card back
+          state.enemyExtraDeck.push(c);
+        }
+      } else {
+        // Normal summon
+        const possible = getSummoningAreas(-1); // Get AI's summoning areas
+        
+        if (possible.length) {
+          const pos = possible[rand(possible.length)];
+          // Check if CRUSH terrain will destroy the monster
+          const summonTerrain = state.terrainMap[pos.y][pos.x];
+          const canEnter = canEnterTerrain(c, summonTerrain);
+          
+          if (canEnter === 'DESTROY') {
+            // CRUSH terrain destroys high ATK monsters
+            log(`<span style="color:var(--crimson)">Enemy's ${c.name} is destroyed by CRUSH terrain!</span>`);
+            state.hasSummoned.enemy = true; // Still counts as summon attempt
+            return;
+          }
+          
+          // AI decides position: DEF if DEF > ATK, or low ATK monsters
+          const useDefense = c.def > c.atk || (c.atk < 1500 && rand(100) < 40);
+          const position = useDefense ? 'DEF' : 'ATK';
+          // AI sometimes sets cards face-down (30% chance, more likely in DEF)
+          const faceUp = useDefense ? rand(100) < 70 : rand(100) < 90;
+          state.units.push(new Unit(c, -1, pos.x, pos.y, position, faceUp));
+          state.hasSummoned.enemy = true; // Mark as summoned
+          const faceText = faceUp ? 'face-up' : 'face-down';
+          log(`Enemy summons <span style="color:var(--crimson)">${c.name}</span> in ${position} (${faceText})`);
+        }
+      }
+    }
+  }
+  
+  const aiUnits = state.units.filter(u => u.owner === -1 && !u.isDeckLeader);
+  const playerLeader = state.units.find(u => u.owner === PLAYER_SIDE && u.isDeckLeader);
+  const playerUnits = state.units.filter(u => u.owner === PLAYER_SIDE && !u.isDeckLeader);
+  
+  for (const a of aiUnits) {
+    if (a.hasMoved && a.hasActed) continue;
+    
+    // Flip face-down cards if they want to act
+    if (a.isFaceDown() && !a.hasActed) {
+      // AI flips face-down cards if they want to attack or move
+      const dlDist = Math.abs(a.x - playerLeader.x) + Math.abs(a.y - playerLeader.y);
+      const nearbyEnemies = playerUnits.filter(p => Math.abs(p.x - a.x) + Math.abs(p.y - a.y) <= 2);
+      if (dlDist <= 2 || nearbyEnemies.length > 0 || rand(100) < 60) {
+        a.flipFaceUp();
+        log(`<span style="color:var(--crimson)">${a.card.name}</span> flipped face-up!`);
+      }
+    }
+    
+    const dlDist = Math.abs(a.x - playerLeader.x) + Math.abs(a.y - playerLeader.y);
+    
+    // Can only attack in ATK position
+    if (!a.isInDefense()) {
+      if (dlDist === 1 && !a.hasActed) { attackDeckLeader(a, playerLeader); continue; }
+      
+      let target = playerLeader, bestDist = dlDist;
+      for (const p of playerUnits) {
+        const d = Math.abs(p.x - a.x) + Math.abs(p.y - a.y);
+        if (d < bestDist) { bestDist = d; target = p; }
+      }
+      
+      if (bestDist === 1 && !a.hasActed) {
+        if (target.isDeckLeader) {
+          attackDeckLeader(a, target);
+        } else {
+          // Can't attack face-down DEF cards
+          if (target.isFaceDown() && target.isInDefense()) {
+            // Skip this target, try to find another
+            continue;
+          }
+          // Flip face-down card face-up when attacked
+          if (target.isFaceDown()) {
+            target.flipFaceUp();
+            log(`<span style="color:var(--crimson)">${target.card.name}</span> flipped face-up!`);
+          }
+          resolveCombat(a, target);
+          a.hasActed = a.hasMoved = true;
+        }
+        continue;
+      }
+    }
+    
+    // Move towards target (moving from DEF switches to ATK)
+    // Face-down cards can't move - must flip first
+    if (!a.hasMoved && !a.isFaceDown()) {
+      let target = playerLeader, bestDist = dlDist;
+      for (const p of playerUnits) {
+        const d = Math.abs(p.x - a.x) + Math.abs(p.y - a.y);
+        if (d < bestDist) { bestDist = d; target = p; }
+      }
+      
+      const dx = target.x > a.x ? 1 : target.x < a.x ? -1 : 0;
+      const dy = target.y > a.y ? 1 : target.y < a.y ? -1 : 0;
+      for (const m of [{ x: a.x, y: a.y + dy }, { x: a.x + dx, y: a.y }, { x: a.x + dx, y: a.y + dy }]) {
+        const nx = clamp(m.x, 0, COLS - 1), ny = clamp(m.y, 0, ROWS - 1);
+        if (Math.abs(nx - a.x) + Math.abs(ny - a.y) > 0 && !state.units.some(u => u.x === nx && u.y === ny)) {
+          // Check if terrain is passable
+          const targetTerrain = state.terrainMap[ny][nx];
+          const canEnter = canEnterTerrain(a.card, targetTerrain);
+          
+          if (canEnter === false) {
+            // LABYRINTH - skip this move
+            continue;
+          }
+          
+          if (canEnter === 'DESTROY') {
+            // CRUSH terrain - destroy the unit
+            log(`<span style="color:var(--crimson)">${a.card.name} is destroyed by CRUSH terrain!</span>`);
+            state.units.splice(state.units.findIndex(u => u.uid === a.uid), 1);
+            break;
+          }
+          
+          // Moving switches DEF to ATK
+          if (a.isInDefense()) {
+            a.position = 'ATK';
+            log(`${a.card.name} switches to ATK and moves`);
+          }
+          a.x = nx; a.y = ny; a.hasMoved = true; break;
+        }
+      }
+    }
+    if (state.gameOver) break;
+  }
+  
+  // AI moves its Deck Leader (strategically towards center/better position)
+  const aiLeader = state.units.find(u => u.owner === -1 && u.isDeckLeader);
+  if (aiLeader && !aiLeader.hasMoved && !state.gameOver) {
+    // Try to move towards center Y (row 3) or away from player units if threatened
+    const bestMoves = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = aiLeader.x + dx, ny = aiLeader.y + dy;
+        if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+        const terrain = state.terrainMap[ny][nx];
+        if (TERRAIN[terrain]?.impassable) continue;
+        if (state.units.some(u => u.x === nx && u.y === ny)) continue;
+        
+        // Score: prefer moving towards center-Y and getting more summoning space
+        let score = 0;
+        if (ny > aiLeader.y && ny < 4) score += 2; // Move towards center
+        // Check how many summoning squares this gives
+        const futureAreas = getSummoningAreasAt(nx, ny, -1);
+        score += futureAreas.length;
+        bestMoves.push({ x: nx, y: ny, score });
+      }
+    }
+    
+    if (bestMoves.length > 0 && rand(100) < 40) { // 40% chance to move
+      bestMoves.sort((a, b) => b.score - a.score);
+      const move = bestMoves[0];
+      aiLeader.x = move.x;
+      aiLeader.y = move.y;
+      aiLeader.hasMoved = true;
+      log(`<span style="color:var(--crimson)">${aiLeader.card.name}</span> (DL) moved`);
+    }
+  }
+  
+  if (!state.gameOver) {
+    // Reset AI flags
+    state.units.forEach(u => { if (u.owner === -1) u.hasMoved = u.hasActed = false; });
+    
+    // Switch back to player and start their turn
+    state.activePlayer = PLAYER_SIDE;
+    state.hasSummoned.player = false; // Reset summon flag
+    
+    // Draw 1 card at start of player's turn
+    if (state.deck.length > 0) {
+      drawCardToHand();
+      log('<span style="color:var(--gold-light)">Draw phase: 1 card drawn</span>');
+    } else {
+      log('Deck empty - no card drawn!');
+    }
+    
+    document.getElementById('turnIndicator').innerText = 'Your Turn';
+  }
+  render();
+}
+
+// Helper for AI to evaluate summoning areas at a hypothetical position
+function getSummoningAreasAt(lx, ly, owner) {
+  const areas = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = lx + dx, ny = ly + dy;
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+        const terrain = state.terrainMap[ny][nx];
+        if (TERRAIN[terrain]?.impassable) continue;
+        if (state.units.some(u => u.x === nx && u.y === ny)) continue;
+        areas.push({ x: nx, y: ny });
+      }
+    }
+  }
+  return areas;
+}
+
+// Start
+initGame();
+</script>
+</body>
+</html>
+

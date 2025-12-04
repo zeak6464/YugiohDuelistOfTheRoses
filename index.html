@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duelist of the Roses</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body {
+      background: 
+        radial-gradient(ellipse at 30% 20%, rgba(139,26,26,0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(26,58,107,0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(201,162,39,0.05) 0%, transparent 70%),
+        var(--bg-dark);
+    }
+
+    .menu-container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .logo h1 {
+      font-size: 56px;
+      color: var(--gold);
+      text-shadow: 
+        0 0 20px rgba(201,162,39,0.5),
+        0 4px 8px rgba(0,0,0,0.8);
+      margin: 0;
+      letter-spacing: 4px;
+    }
+
+    .logo h2 {
+      font-size: 24px;
+      color: var(--text-muted);
+      margin: 10px 0 0 0;
+      font-weight: 400;
+      letter-spacing: 8px;
+    }
+
+    .logo .subtitle {
+      font-family: 'MedievalSharp', cursive;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 20px;
+    }
+
+    .menu-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .menu-btn {
+      padding: 20px 40px;
+      font-size: 18px;
+      letter-spacing: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .menu-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .menu-btn:hover::before {
+      left: 100%;
+    }
+
+    .menu-btn .icon {
+      margin-right: 12px;
+      font-size: 20px;
+    }
+
+    .version {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .credits {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: 'MedievalSharp', cursive;
+    }
+
+    .credits a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+
+    .credits a:hover {
+      text-decoration: underline;
+    }
+
+    /* Decorative roses */
+    .rose {
+      position: fixed;
+      font-size: 120px;
+      opacity: 0.03;
+      pointer-events: none;
+    }
+    .rose.red { 
+      top: 10%; 
+      left: 5%; 
+      color: var(--crimson);
+      transform: rotate(-15deg);
+    }
+    .rose.white { 
+      bottom: 10%; 
+      right: 5%; 
+      color: var(--text);
+      transform: rotate(15deg);
+    }
+
+    /* Card decoration */
+    .deco-cards {
+      position: fixed;
+      bottom: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: -30px;
+      opacity: 0.08;
+      pointer-events: none;
+    }
+
+    .deco-card {
+      width: 80px;
+      height: 110px;
+      background: var(--gold);
+      border-radius: 4px;
+      transform-origin: bottom center;
+    }
+
+    .deco-card:nth-child(1) { transform: rotate(-20deg); }
+    .deco-card:nth-child(2) { transform: rotate(-10deg); }
+    .deco-card:nth-child(3) { transform: rotate(0deg); }
+    .deco-card:nth-child(4) { transform: rotate(10deg); }
+    .deco-card:nth-child(5) { transform: rotate(20deg); }
+  </style>
+</head>
+<body>
+  <!-- Decorative elements -->
+  <div class="rose red">🌹</div>
+  <div class="rose white">🌹</div>
+  <div class="deco-cards">
+    <div class="deco-card"></div>
+    <div class="deco-card"></div>
+    <div class="deco-card"></div>
+    <div class="deco-card"></div>
+    <div class="deco-card"></div>
+  </div>
+
+  <div class="menu-container">
+    <div class="logo">
+      <h1>Duelist</h1>
+      <h2>OF THE ROSES</h2>
+      <p class="subtitle">A Yu-Gi-Oh! Tactical Card Game</p>
+    </div>
+
+    <div class="menu-options">
+      <a href="campaign.html" class="btn menu-btn" style="background: linear-gradient(135deg, rgba(201,162,39,0.3) 0%, rgba(201,162,39,0.1) 100%); border: 2px solid var(--gold);">
+        <span class="icon">👑</span> Campaign Mode
+      </a>
+      <a href="game.html" class="btn menu-btn">
+        <span class="icon">⚔️</span> Single Player
+      </a>
+      <a href="multiplayer.html" class="btn menu-btn">
+        <span class="icon">👥</span> Multiplayer
+      </a>
+      <a href="deck-editor.html" class="btn btn-secondary menu-btn">
+        <span class="icon">📋</span> Deck Editor
+      </a>
+      <a href="terrain-editor.html" class="btn btn-secondary menu-btn">
+        <span class="icon">🌍</span> Terrain Editor
+      </a>
+      <button class="btn btn-secondary menu-btn" onclick="clearCache()">
+        <span class="icon">🔄</span> Refresh Cards
+      </button>
+    </div>
+  </div>
+
+  <div class="version">v1.0 HTML5</div>
+  <div class="credits">
+    Card data from <a href="https://ygoprodeck.com/api-guide/" target="_blank">YGOPRODeck API</a>
+  </div>
+
+  <script>
+    function clearCache() {
+      localStorage.removeItem('dotr_cards_cache');
+      localStorage.removeItem('dotr_cache_time');
+      alert('Card cache cleared! Cards will be re-downloaded on next game start.');
+    }
+  </script>
+</body>
+</html>
+

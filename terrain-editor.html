@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terrain Editor - Duelist of the Roses</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/cards.js"></script>
+  <style>
+    body {
+      background: var(--bg-dark);
+      padding: 20px;
+    }
+
+    .editor-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: rgba(26,58,107,0.3);
+      border-radius: 8px;
+      border: 1px solid var(--gold);
+    }
+
+    .editor-header h1 {
+      color: var(--gold);
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .editor-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .editor-main {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+    }
+
+    .board-container {
+      background: rgba(26,58,107,0.2);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--gold);
+    }
+
+    #terrainCanvas {
+      display: block;
+      margin: 0 auto;
+      border: 2px solid var(--gold);
+      background: #1a1a1a;
+      cursor: crosshair;
+    }
+
+    .terrain-palette {
+      background: rgba(26,58,107,0.2);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--gold);
+    }
+
+    .terrain-palette h2 {
+      color: var(--gold);
+      margin-top: 0;
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+
+    .terrain-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: rgba(201,162,39,0.1);
+      border: 2px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .terrain-item:hover {
+      background: rgba(201,162,39,0.2);
+      border-color: var(--gold);
+    }
+
+    .terrain-item.selected {
+      background: rgba(201,162,39,0.3);
+      border-color: var(--gold);
+      box-shadow: 0 0 10px rgba(201,162,39,0.5);
+    }
+
+    .terrain-color {
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .terrain-name {
+      flex: 1;
+      color: var(--text);
+      font-weight: bold;
+    }
+
+    .terrain-info {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .info-panel {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(26,58,107,0.2);
+      border-radius: 4px;
+      border: 1px solid var(--gold);
+    }
+
+    .info-panel h3 {
+      color: var(--gold);
+      margin-top: 0;
+      font-size: 14px;
+    }
+
+    .info-panel p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 5px 0;
+      line-height: 1.4;
+    }
+
+    .brush-size {
+      margin-top: 15px;
+    }
+
+    .brush-size label {
+      display: block;
+      color: var(--text);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .brush-size input {
+      width: 100%;
+    }
+
+    .stats {
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .stats div {
+      margin: 3px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="editor-container">
+    <div class="editor-header">
+      <h1>🌍 Terrain Editor</h1>
+      <div class="editor-controls">
+        <button class="btn" onclick="clearBoard()">Clear All</button>
+        <button class="btn btn-secondary" onclick="randomizeBoard()">Randomize</button>
+        <button class="btn" onclick="saveTerrain()">💾 Save Terrain</button>
+        <button class="btn btn-secondary" onclick="loadTerrain()">📂 Load Terrain</button>
+        <button class="btn" onclick="setAsActive()" style="background:var(--gold);color:#1a1a1a;">⭐ Set as Active</button>
+        <a href="index.html" class="btn btn-secondary">← Back to Menu</a>
+      </div>
+    </div>
+
+    <div class="editor-main">
+      <div class="board-container">
+        <canvas id="terrainCanvas" width="700" height="700"></canvas>
+      </div>
+
+      <div class="terrain-palette">
+        <h2>Terrain Types</h2>
+        <div id="terrainList"></div>
+
+        <div class="brush-size">
+          <label>Brush Size: <span id="brushSizeDisplay">1</span></label>
+          <input type="range" id="brushSize" min="1" max="3" value="1">
+        </div>
+
+        <div class="info-panel">
+          <h3>Selected Terrain</h3>
+          <div id="terrainDetails">
+            <p>Click a terrain type to select it</p>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div><strong>Board Size:</strong> 7×7</div>
+          <div><strong>Total Tiles:</strong> 49</div>
+          <div id="terrainStats"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const COLS = 7, ROWS = 7;
+    const TILE_SIZE = 100;
+    const canvas = document.getElementById('terrainCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let terrainMap = [];
+    let selectedTerrain = 'NORMAL';
+    let brushSize = 1;
+    let isDrawing = false;
+    let terrainImages = {};
+
+    // Initialize terrain map
+    function initTerrainMap() {
+      terrainMap = [];
+      for (let y = 0; y < ROWS; y++) {
+        terrainMap[y] = [];
+        for (let x = 0; x < COLS; x++) {
+          terrainMap[y][x] = 'NORMAL';
+        }
+      }
+    }
+
+    // Load terrain images
+    function loadTerrainImages() {
+      let loadedCount = 0;
+      const total = Object.keys(TERRAIN).length;
+      
+      // Alternative URLs for problematic terrains (with correct hash paths)
+      const altUrls = {
+        TOON: [
+          'https://ms.yugipedia.com/6/68/DOR-ToonSquare-Textures.png'
+        ],
+        LABYRINTH: [
+          'https://ms.yugipedia.com/8/8a/DOR-LabyrinthSquare-Textures.png'
+        ],
+        CRUSH: [
+          'https://ms.yugipedia.com/9/9b/DOR-CrushSquare-Textures.png'
+        ]
+      };
+      
+      function tryLoadImage(key, terrain, urlIndex = 0) {
+        const img = new Image();
+        const urls = altUrls[key] || [terrain.image];
+        const url = urls[urlIndex] || terrain.image;
+        
+        img.onload = () => {
+          loadedCount++;
+          console.log(`✓ Terrain image loaded: ${key} (${loadedCount}/${total})`);
+          terrainImages[key] = img;
+          render();
+        };
+        
+        img.onerror = () => {
+          // Try next URL if available
+          if (urlIndex < urls.length - 1) {
+            console.log(`Trying alternative URL for ${key}...`);
+            tryLoadImage(key, terrain, urlIndex + 1);
+          } else {
+            loadedCount++;
+            console.warn(`⚠ Terrain image failed: ${key}, using color fallback`);
+            img.failed = true;
+            terrainImages[key] = img;
+            render();
+          }
+        };
+        
+        img.src = url;
+        if (!terrainImages[key]) terrainImages[key] = img;
+      }
+      
+      for (const [key, terrain] of Object.entries(TERRAIN)) {
+        tryLoadImage(key, terrain);
+      }
+    }
+
+    // Render terrain palette
+    function renderPalette() {
+      const list = document.getElementById('terrainList');
+      list.innerHTML = '';
+      
+      for (const [key, terrain] of Object.entries(TERRAIN)) {
+        const div = document.createElement('div');
+        div.className = `terrain-item ${selectedTerrain === key ? 'selected' : ''}`;
+        div.onclick = () => {
+          selectedTerrain = key;
+          renderPalette();
+          updateTerrainDetails();
+        };
+        div.innerHTML = `
+          <div class="terrain-color" style="background: ${terrain.color}"></div>
+          <div>
+            <div class="terrain-name">${terrain.name}</div>
+            <div class="terrain-info">${terrain.effect.slice(0, 40)}...</div>
+          </div>
+        `;
+        list.appendChild(div);
+      }
+    }
+
+    // Update terrain details
+    function updateTerrainDetails() {
+      const terrain = TERRAIN[selectedTerrain];
+      const details = document.getElementById('terrainDetails');
+      details.innerHTML = `
+        <p><strong>${terrain.name}</strong></p>
+        <p>${terrain.effect}</p>
+        ${terrain.advantage.length > 0 ? `<p><strong>Advantage:</strong> ${terrain.advantage.join(', ')}</p>` : ''}
+        ${terrain.disadvantage.length > 0 ? `<p><strong>Disadvantage:</strong> ${terrain.disadvantage.join(', ')}</p>` : ''}
+        ${terrain.impassable ? '<p style="color:#c74a4a;"><strong>Impassable!</strong></p>' : ''}
+      `;
+    }
+
+    // Render board
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const px = x * TILE_SIZE;
+          const py = y * TILE_SIZE;
+          const terrainKey = terrainMap[y][x];
+          const terrain = TERRAIN[terrainKey];
+          const img = terrainImages[terrainKey];
+          
+          // Draw terrain
+          if (img && !img.failed && img.complete && img.naturalHeight > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            ctx.clip();
+            ctx.drawImage(img, px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            ctx.restore();
+          } else {
+            // Fallback to color with pattern for special terrains
+            ctx.fillStyle = terrain.color;
+            ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            
+            // Add pattern overlay for TOON, LABYRINTH, CRUSH
+            if (terrainKey === 'LABYRINTH' || terrainKey === 'CRUSH' || terrainKey === 'TOON') {
+              ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 4]);
+              ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+              ctx.setLineDash([]);
+            }
+          }
+          
+          // Border
+          ctx.strokeStyle = 'rgba(201,162,39,0.3)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+          
+          // Label
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.fillText(terrain.name, px + 6, py + 14);
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillText(terrain.name, px + 5, py + 13);
+        }
+      }
+      
+      updateStats();
+    }
+
+    // Update statistics
+    function updateStats() {
+      const stats = {};
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const t = terrainMap[y][x];
+          stats[t] = (stats[t] || 0) + 1;
+        }
+      }
+      
+      const statsDiv = document.getElementById('terrainStats');
+      statsDiv.innerHTML = '<div style="margin-top:8px;"><strong>Terrain Count:</strong></div>';
+      for (const [key, count] of Object.entries(stats)) {
+        const terrain = TERRAIN[key];
+        statsDiv.innerHTML += `<div>${terrain.name}: ${count}</div>`;
+      }
+    }
+
+    // Get tile from mouse position
+    function getTileFromMouse(ev) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((ev.clientX - rect.left) / TILE_SIZE);
+      const y = Math.floor((ev.clientY - rect.top) / TILE_SIZE);
+      return { x, y };
+    }
+
+    // Paint terrain
+    function paintTerrain(x, y) {
+      for (let dy = -brushSize + 1; dy < brushSize; dy++) {
+        for (let dx = -brushSize + 1; dx < brushSize; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+            terrainMap[ny][nx] = selectedTerrain;
+          }
+        }
+      }
+      render();
+    }
+
+    // Event listeners
+    canvas.addEventListener('mousedown', ev => {
+      isDrawing = true;
+      const { x, y } = getTileFromMouse(ev);
+      paintTerrain(x, y);
+    });
+
+    canvas.addEventListener('mousemove', ev => {
+      if (isDrawing) {
+        const { x, y } = getTileFromMouse(ev);
+        paintTerrain(x, y);
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isDrawing = false;
+    });
+
+    // Brush size
+    document.getElementById('brushSize').addEventListener('input', ev => {
+      brushSize = parseInt(ev.target.value);
+      document.getElementById('brushSizeDisplay').textContent = brushSize;
+    });
+
+    // Clear board
+    function clearBoard() {
+      if (confirm('Clear entire board to NORMAL terrain?')) {
+        initTerrainMap();
+        render();
+      }
+    }
+
+    // Randomize board
+    function randomizeBoard() {
+      const terrains = Object.keys(TERRAIN);
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          terrainMap[y][x] = terrains[Math.floor(Math.random() * terrains.length)];
+        }
+      }
+      render();
+    }
+
+    // Save terrain
+    function saveTerrain() {
+      const name = prompt('Enter terrain map name:', 'custom_terrain');
+      if (name) {
+        const data = {
+          name,
+          terrainMap,
+          createdAt: new Date().toISOString()
+        };
+        const saved = JSON.parse(localStorage.getItem('dotr_terrain_maps') || '{}');
+        saved[name] = data;
+        localStorage.setItem('dotr_terrain_maps', JSON.stringify(saved));
+        alert(`Terrain map "${name}" saved!`);
+      }
+    }
+
+    // Load terrain
+    function loadTerrain() {
+      const saved = JSON.parse(localStorage.getItem('dotr_terrain_maps') || '{}');
+      const names = Object.keys(saved);
+      
+      if (names.length === 0) {
+        alert('No saved terrain maps found!');
+        return;
+      }
+      
+      const name = prompt(`Enter terrain map name to load:\n\nAvailable: ${names.join(', ')}`, names[0]);
+      if (name && saved[name]) {
+        terrainMap = saved[name].terrainMap;
+        render();
+        alert(`Terrain map "${name}" loaded!`);
+      } else if (name) {
+        alert(`Terrain map "${name}" not found!`);
+      }
+    }
+
+    // Load active terrain from game
+    function loadDefaultTerrain() {
+      const activeTerrain = localStorage.getItem('dotr_active_terrain');
+      if (activeTerrain) {
+        try {
+          terrainMap = JSON.parse(activeTerrain);
+          render();
+        } catch (e) {
+          console.error('Failed to load active terrain:', e);
+        }
+      }
+    }
+
+    // Set current terrain as active (used in game)
+    function setAsActive() {
+      localStorage.setItem('dotr_active_terrain', JSON.stringify(terrainMap));
+      alert('Terrain map set as active! It will be used in the next game.');
+    }
+
+    // Initialize
+    initTerrainMap();
+    loadTerrainImages();
+    renderPalette();
+    updateTerrainDetails();
+    loadDefaultTerrain();
+    render();
+  </script>
+</body>
+</html>
+

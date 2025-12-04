@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiplayer - Duelist of the Roses</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body {
+      background: var(--bg-dark);
+      padding: 20px;
+    }
+
+    .multiplayer-container {
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 30px;
+      background: rgba(26,58,107,0.3);
+      border-radius: 12px;
+      border: 2px solid var(--gold);
+    }
+
+    .multiplayer-container h1 {
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 32px;
+    }
+
+    .connection-section {
+      margin-bottom: 30px;
+    }
+
+    .connection-section h2 {
+      color: var(--gold-light);
+      font-size: 18px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(201,162,39,0.3);
+      padding-bottom: 8px;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      display: block;
+      color: var(--text);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(201,162,39,0.3);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    .info-box {
+      background: rgba(0,0,0,0.3);
+      border-left: 3px solid var(--gold);
+      padding: 12px;
+      margin: 15px 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 4px;
+      margin: 15px 0;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .status.connecting {
+      background: rgba(201,162,39,0.2);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+
+    .status.connected {
+      background: rgba(74,200,122,0.2);
+      color: #4ac77a;
+      border: 1px solid #4ac77a;
+    }
+
+    .status.error {
+      background: rgba(199,74,74,0.2);
+      color: var(--crimson);
+      border: 1px solid var(--crimson);
+    }
+
+    .status.waiting {
+      background: rgba(74,122,199,0.2);
+      color: #4a7ac7;
+      border: 1px solid #4a7ac7;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .button-group .btn {
+      flex: 1;
+    }
+
+    .local-multiplayer {
+      background: rgba(74,200,122,0.15);
+      border: 2px solid rgba(74,200,122,0.5);
+      border-radius: 8px;
+      padding: 24px;
+      margin-top: 20px;
+      box-shadow: 0 4px 12px rgba(74,200,122,0.2);
+    }
+
+    .local-multiplayer h3 {
+      color: var(--gold);
+      margin-top: 0;
+      font-size: 16px;
+    }
+
+    .local-multiplayer p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="btn btn-secondary back-link">← Menu</a>
+
+  <div class="multiplayer-container">
+    <h1>👥 Multiplayer</h1>
+
+    <!-- Local Network Multiplayer - Best for Same Machine -->
+    <div class="local-multiplayer" style="margin-top:0; margin-bottom:30px;">
+      <h3>🖥️ Local Network Multiplayer - Same Machine, Two Windows!</h3>
+      <p><strong>Best for local play!</strong> Open the game in two browser windows/tabs. Each player sees their own hand. Requires a local server (run: <code>node local-server.js</code>).</p>
+      
+      <div class="input-group" style="margin-top:15px;">
+        <label>Local Server URL</label>
+        <input type="text" id="localServerUrl" placeholder="ws://127.0.0.1:8082" value="ws://127.0.0.1:8082">
+      </div>
+
+      <div class="input-group">
+        <label>Your Name</label>
+        <input type="text" id="localPlayerName" placeholder="Enter your name" maxlength="20">
+      </div>
+
+      <div id="localConnectionStatus" class="status" style="display:none;"></div>
+
+      <div class="button-group" style="margin-top:15px;">
+        <button class="btn" onclick="connectLocal()" style="width:100%; font-size:16px; padding:14px;">Connect to Local Server</button>
+        <button class="btn btn-secondary" onclick="disconnectLocal()" id="localDisconnectBtn" style="display:none; width:100%;">Disconnect</button>
+      </div>
+
+      <div id="localLobbyInfo" style="display:none; margin-top:15px;">
+        <div class="info-box">
+          <strong id="localStatusText">Waiting for opponent...</strong><br>
+          <span style="font-size:11px; color:var(--text-muted);">Open another browser window and connect to join!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2P Multiplayer (Recommended) -->
+    <div class="connection-section">
+      <h2>🔗 Peer-to-Peer (P2P) - Recommended</h2>
+      <div class="info-box" style="border-left-color: #4ac77a;">
+        <strong>Best option!</strong> Players connect directly - lower latency, no game server needed. 
+        Only requires a simple signaling server for initial connection (much cheaper to host).
+      </div>
+
+      <div class="input-group">
+        <label>Signaling Server URL</label>
+        <input type="text" id="p2pSignalingUrl" placeholder="ws://localhost:8081" value="ws://localhost:8081">
+      </div>
+
+      <div class="input-group">
+        <label>Room Code (leave empty to create, or enter to join)</label>
+        <input type="text" id="p2pRoomCode" placeholder="Enter room code or leave empty" maxlength="10" style="text-transform:uppercase;">
+      </div>
+
+      <div id="p2pConnectionStatus" class="status" style="display:none;"></div>
+
+      <div class="button-group">
+        <button class="btn" onclick="connectP2P()">Connect P2P</button>
+        <button class="btn btn-secondary" onclick="disconnectP2P()" id="p2pDisconnectBtn" style="display:none;">Disconnect</button>
+      </div>
+
+      <div id="p2pLobbyInfo" style="display:none; margin-top:20px;">
+        <div class="info-box">
+          <strong id="p2pStatusText">Creating room...</strong><br>
+          <span id="p2pRoomCodeDisplay" style="color:var(--gold);font-weight:bold;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Online Multiplayer (Server-based) -->
+    <div class="connection-section">
+      <h2>🌐 Server-Based Multiplayer</h2>
+      <div class="info-box">
+        Traditional server-based multiplayer. All game data goes through the server.
+        Requires a full game server (more expensive to host).
+      </div>
+
+      <div class="input-group">
+        <label>Server URL</label>
+        <input type="text" id="serverUrl" placeholder="ws://localhost:8080" value="ws://localhost:8080">
+      </div>
+
+      <div class="input-group">
+        <label>Your Name</label>
+        <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+      </div>
+
+      <div id="connectionStatus" class="status" style="display:none;"></div>
+
+      <div class="button-group">
+        <button class="btn" onclick="connectToServer()">Connect</button>
+        <button class="btn btn-secondary" onclick="disconnect()" id="disconnectBtn" style="display:none;">Disconnect</button>
+      </div>
+
+      <div id="lobbyInfo" style="display:none; margin-top:20px;">
+        <div class="info-box">
+          <strong>Waiting for opponent...</strong><br>
+          Share this room code: <span id="roomCode" style="color:var(--gold);font-weight:bold;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/cards.js"></script>
+  <script>
+    let ws = null;
+    let isConnected = false;
+    let roomId = null;
+    let playerId = null;
+    
+    // P2P variables
+    let p2pRoomId = null;
+    let p2pPlayerId = null;
+
+    function connectToServer() {
+      const serverUrl = document.getElementById('serverUrl').value.trim();
+      const playerName = document.getElementById('playerName').value.trim() || 'Player';
+
+      if (!serverUrl) {
+        showStatus('error', 'Please enter a server URL');
+        return;
+      }
+
+      showStatus('connecting', 'Connecting to server...');
+      
+      try {
+        ws = new WebSocket(serverUrl);
+        
+        ws.onopen = () => {
+          isConnected = true;
+          showStatus('connected', 'Connected! Waiting for opponent...');
+          document.getElementById('disconnectBtn').style.display = 'block';
+          
+          // Send join request
+          ws.send(JSON.stringify({
+            type: 'join',
+            playerName: playerName
+          }));
+        };
+
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          handleServerMessage(message);
+        };
+
+        ws.onerror = (error) => {
+          showStatus('error', 'Connection error. Is the server running?');
+          console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+          isConnected = false;
+          showStatus('error', 'Disconnected from server');
+          document.getElementById('disconnectBtn').style.display = 'none';
+          document.getElementById('lobbyInfo').style.display = 'none';
+        };
+      } catch (error) {
+        showStatus('error', 'Failed to connect: ' + error.message);
+      }
+    }
+
+    function handleServerMessage(message) {
+      switch (message.type) {
+        case 'joined':
+          roomId = message.roomId;
+          playerId = message.playerId;
+          document.getElementById('roomCode').textContent = roomId;
+          document.getElementById('lobbyInfo').style.display = 'block';
+          showStatus('waiting', 'Waiting for opponent to join...');
+          break;
+        
+        case 'gameStart':
+          // Start the game with multiplayer mode
+          localStorage.setItem('dotr_multiplayer_mode', 'online');
+          localStorage.setItem('dotr_room_id', roomId);
+          localStorage.setItem('dotr_player_id', playerId);
+          localStorage.setItem('dotr_ws_url', document.getElementById('serverUrl').value);
+          window.location.href = 'game.html?mode=multiplayer';
+          break;
+        
+        case 'error':
+          showStatus('error', message.message);
+          break;
+        
+        default:
+          console.log('Unknown message type:', message);
+      }
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      isConnected = false;
+      document.getElementById('disconnectBtn').style.display = 'none';
+      document.getElementById('lobbyInfo').style.display = 'none';
+      document.getElementById('connectionStatus').style.display = 'none';
+    }
+
+    function showStatus(type, message) {
+      const status = document.getElementById('connectionStatus');
+      status.className = 'status ' + type;
+      status.textContent = message;
+      status.style.display = 'block';
+    }
+
+    function startLocalMultiplayer() {
+      localStorage.setItem('dotr_multiplayer_mode', 'local');
+      window.location.href = 'game.html?mode=local';
+    }
+
+    // Local Network Multiplayer Functions
+    let localWs = null;
+    let localRoomId = null;
+    let localPlayerId = null;
+
+    function connectLocal() {
+      const serverUrl = document.getElementById('localServerUrl').value.trim();
+      const playerName = document.getElementById('localPlayerName').value.trim() || 'Player';
+
+      if (!serverUrl) {
+        showLocalStatus('error', 'Please enter a server URL');
+        return;
+      }
+
+      showLocalStatus('connecting', 'Connecting to local server...');
+      document.getElementById('localLobbyInfo').style.display = 'block';
+      
+      try {
+        localWs = new WebSocket(serverUrl);
+        
+        localWs.onopen = () => {
+          showLocalStatus('connected', 'Connected! Waiting for opponent...');
+          document.getElementById('localDisconnectBtn').style.display = 'block';
+          
+          // Send join request
+          localWs.send(JSON.stringify({
+            type: 'join',
+            playerName: playerName
+          }));
+        };
+
+        localWs.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          handleLocalMessage(message);
+        };
+
+        localWs.onerror = (error) => {
+          showLocalStatus('error', 'Connection error. Is the local server running? (node local-server.js)');
+          console.error('Local WebSocket error:', error);
+        };
+
+        localWs.onclose = () => {
+          showLocalStatus('error', 'Disconnected from local server');
+          document.getElementById('localDisconnectBtn').style.display = 'none';
+          document.getElementById('localLobbyInfo').style.display = 'none';
+        };
+      } catch (error) {
+        showLocalStatus('error', 'Failed to connect: ' + error.message);
+      }
+    }
+
+    function handleLocalMessage(message) {
+      switch (message.type) {
+        case 'joined':
+          localRoomId = message.roomId;
+          localPlayerId = message.playerId;
+          document.getElementById('localStatusText').textContent = 'Waiting for opponent... Open another browser window and connect!';
+          showLocalStatus('waiting', 'Waiting for opponent to join...');
+          break;
+        
+        case 'gameStart':
+          // Start the game with local network multiplayer mode
+          localStorage.setItem('dotr_multiplayer_mode', 'online');
+          localStorage.setItem('dotr_room_id', localRoomId);
+          localStorage.setItem('dotr_player_id', localPlayerId);
+          localStorage.setItem('dotr_ws_url', document.getElementById('localServerUrl').value);
+          window.location.href = 'game.html?mode=local-network';
+          break;
+        
+        case 'error':
+          showLocalStatus('error', message.message);
+          break;
+        
+        default:
+          console.log('Unknown local message type:', message);
+      }
+    }
+
+    function disconnectLocal() {
+      if (localWs) {
+        localWs.close();
+        localWs = null;
+      }
+      document.getElementById('localDisconnectBtn').style.display = 'none';
+      document.getElementById('localLobbyInfo').style.display = 'none';
+      document.getElementById('localConnectionStatus').style.display = 'none';
+    }
+
+    function showLocalStatus(type, message) {
+      const status = document.getElementById('localConnectionStatus');
+      status.className = 'status ' + type;
+      status.textContent = message;
+      status.style.display = 'block';
+    }
+
+    // P2P Connection Functions
+    function connectP2P() {
+      const signalingUrl = document.getElementById('p2pSignalingUrl').value.trim();
+      const roomCode = document.getElementById('p2pRoomCode').value.trim().toUpperCase();
+
+      if (!signalingUrl) {
+        showP2PStatus('error', 'Please enter a signaling server URL');
+        return;
+      }
+
+      showP2PStatus('connecting', 'Connecting to signaling server...');
+      document.getElementById('p2pLobbyInfo').style.display = 'block';
+      
+      try {
+        const ws = new WebSocket(signalingUrl);
+        
+        ws.onopen = () => {
+          if (roomCode) {
+            // Joining existing room
+            document.getElementById('p2pStatusText').textContent = 'Joining room...';
+            ws.send(JSON.stringify({
+              type: 'join',
+              roomId: roomCode
+            }));
+          } else {
+            // Creating new room
+            p2pRoomId = generateRoomId();
+            p2pPlayerId = generatePlayerId();
+            document.getElementById('p2pRoomCodeDisplay').textContent = p2pRoomId;
+            document.getElementById('p2pStatusText').textContent = 'Room created! Share this code:';
+            ws.send(JSON.stringify({
+              type: 'create',
+              roomId: p2pRoomId,
+              playerId: p2pPlayerId
+            }));
+          }
+        };
+
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          handleP2PSignaling(message, ws);
+        };
+
+        ws.onerror = (error) => {
+          showP2PStatus('error', 'Connection error. Is the signaling server running?');
+          console.error('P2P signaling error:', error);
+        };
+
+        ws.onclose = () => {
+          showP2PStatus('error', 'Disconnected from signaling server');
+          document.getElementById('p2pDisconnectBtn').style.display = 'none';
+        };
+      } catch (error) {
+        showP2PStatus('error', 'Failed to connect: ' + error.message);
+      }
+    }
+
+    function handleP2PSignaling(message, ws) {
+      switch (message.type) {
+        case 'created':
+          showP2PStatus('waiting', 'Waiting for opponent...');
+          document.getElementById('p2pDisconnectBtn').style.display = 'block';
+          break;
+
+        case 'joined':
+          p2pRoomId = message.roomId;
+          showP2PStatus('waiting', 'Connected! Establishing P2P connection...');
+          document.getElementById('p2pDisconnectBtn').style.display = 'block';
+          break;
+
+        case 'gameStart':
+          // Start the game with P2P mode
+          localStorage.setItem('dotr_multiplayer_mode', 'p2p');
+          localStorage.setItem('dotr_room_id', p2pRoomId);
+          localStorage.setItem('dotr_player_id', p2pPlayerId);
+          localStorage.setItem('dotr_signaling_url', document.getElementById('p2pSignalingUrl').value);
+          window.location.href = 'game.html?mode=p2p';
+          break;
+
+        case 'error':
+          showP2PStatus('error', message.message);
+          break;
+      }
+    }
+
+    function disconnectP2P() {
+      // Close any connections
+      document.getElementById('p2pDisconnectBtn').style.display = 'none';
+      document.getElementById('p2pLobbyInfo').style.display = 'none';
+      document.getElementById('p2pConnectionStatus').style.display = 'none';
+    }
+
+    function showP2PStatus(type, message) {
+      const status = document.getElementById('p2pConnectionStatus');
+      status.className = 'status ' + type;
+      status.textContent = message;
+      status.style.display = 'block';
+    }
+
+    function generateRoomId() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    function generatePlayerId() {
+      return Math.random().toString(36).substring(2, 9);
+    }
+
+    // Check if coming from game (reconnection)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('reconnect') === 'true') {
+      const savedUrl = localStorage.getItem('dotr_ws_url');
+      if (savedUrl) {
+        document.getElementById('serverUrl').value = savedUrl;
+      }
+      const savedP2PUrl = localStorage.getItem('dotr_signaling_url');
+      if (savedP2PUrl) {
+        document.getElementById('p2pSignalingUrl').value = savedP2PUrl;
+      }
+    }
+  </script>
+</body>
+</html>
+
